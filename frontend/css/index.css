@@ -1,0 +1,393 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Be Vietnam Pro", sans-serif;
+}
+
+body {
+  background: #dcdcdc;
+  color: #1c1c1c;
+  overflow-x: hidden;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.page-wrapper {
+  width: 100%;
+  min-height: 100vh;
+  background: #dcdcdc;
+  overflow-x: hidden;
+}
+
+/* HEADER */
+.header {
+  height: 80px;
+  background: #efefef;
+  border-bottom: 1px solid #444;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 26px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 56px;
+}
+
+.logo {
+  font-weight: 800;
+  font-size: 18px;
+  text-transform: uppercase;
+  color: #111;
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+}
+
+.nav-link {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2f2f2f;
+  position: relative;
+  padding-bottom: 10px;
+}
+
+.nav-link.active {
+  color: #17863b;
+}
+
+.nav-link.active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 78px;
+  height: 2px;
+  background: #17863b;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wallet-info {
+  min-width: 176px;
+  height: 34px;
+  border: 1px solid #4d4d4d;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: #3c3c3c;
+}
+
+.wallet-dot {
+  width: 7px;
+  height: 7px;
+  background: #17863b;
+  display: inline-block;
+}
+
+.connect-btn {
+  height: 34px;
+  padding: 0 22px;
+  border: none;
+  background: #000;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.connect-btn:hover {
+  opacity: 0.9;
+}
+
+/* HERO */
+.hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+  padding: 22px 44px 8px 44px;
+}
+
+.hero-mark {
+  width: 6px;
+  height: 95px;
+  background: #17863b;
+  flex-shrink: 0;
+  margin-top: 8px;
+}
+
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.hero-content h1 {
+  font-size: clamp(36px, 4vw, 52px);
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: -1px;
+  margin-bottom: 10px;
+}
+
+.hero-content p {
+  max-width: 700px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #555;
+}
+
+/* LISTING */
+.listing {
+  padding: 40px 44px 0 44px;
+}
+
+.listing h2 {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  text-transform: uppercase;
+
+  margin-top: 20px;
+  margin-bottom: 15px;
+}
+
+.card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  margin: 0;
+  padding: 0;
+}
+
+.project-card {
+  width: 240px;
+  min-width: 240px;
+  background: #ececec;
+  border: 1px solid #5b5b5b;
+  flex: 0 0 240px;
+}
+
+.card-image-wrap {
+  position: relative;
+  width: 100%;
+  height: 148px;
+  overflow: hidden;
+  border-bottom: 1px solid #5b5b5b;
+}
+
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: grayscale(100%);
+}
+
+.price-tag {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #17863b;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 5px 10px;
+  text-transform: uppercase;
+}
+
+.card-body {
+  padding: 18px;
+  min-height: 182px;
+}
+
+.card-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: #666;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.card-code {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: #1d2022;
+  margin-bottom: 22px;
+}
+
+.card-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #595959;
+  min-height: 52px;
+  margin-bottom: 18px;
+  font-weight: 500;
+}
+
+.detail-btn {
+  width: 100%;
+  height: 34px;
+  border: 1px solid #575757;
+  background: transparent;
+  color: #111;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.detail-btn:hover {
+  background: #111;
+  color: #fff;
+}
+
+/* FOOTER */
+.footer {
+  margin-top: 36px;
+  min-height: 154px;
+  border-top: 4px solid #18b152;
+  background: #efefef;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 36px 24px 26px 24px;
+}
+
+.footer-left h3 {
+  color: #17863b;
+  font-size: 18px;
+  font-weight: 900;
+  margin-bottom: 10px;
+}
+
+.footer-left p {
+  font-size: 11px;
+  color: #535353;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.footer-right {
+  display: flex;
+  gap: 54px;
+}
+
+.footer-column h4 {
+  font-size: 12px;
+  color: #a3a3a3;
+  font-weight: 800;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+
+.footer-column a {
+  display: block;
+  font-size: 12px;
+  color: #1e1e1e;
+  line-height: 1.9;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .header {
+    height: auto;
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .header-left,
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .hero {
+    padding: 24px 16px 8px 16px;
+  }
+
+  .hero-content h1 {
+    font-size: 42px;
+  }
+
+  .hero-content p {
+    font-size: 16px;
+  }
+
+  .listing {
+    padding: 24px 16px 0 16px;
+  }
+
+  .card-grid {
+    justify-content: center;
+  }
+
+  .footer {
+    flex-direction: column;
+    gap: 24px;
+  }
+}
+.listing-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.listing-tools {
+  display: flex;
+  gap: 10px;
+}
+
+#searchInput {
+  height: 36px;
+  width: 220px;
+  border: 1px solid #555;
+  padding: 0 10px;
+  background: #efefef;
+  outline: none;
+  font-size: 12px;
+}
+
+.filter-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #555;
+  background: #efefef;
+  cursor: pointer;
+}
+
+.divider {
+  height: 1px;
+  background: #444;
+  margin-bottom: 20px;
+}
