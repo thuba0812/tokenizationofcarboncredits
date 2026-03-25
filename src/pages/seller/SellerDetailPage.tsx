@@ -1,41 +1,50 @@
-import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Pencil, ExternalLink } from 'lucide-react'
+import { ArrowLeft, ExternalLink } from 'lucide-react'
 import Footer from '../../components/Footer'
-import BurnModal from '../../components/modals/BurnModal'
-import SetPriceModal from '../../components/modals/SetPriceModal'
 import { PROJECTS } from '../../data/mockData'
+import { useWallet } from '../../contexts/WalletContext'
 
 export default function SellerDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [burnOpen, setBurnOpen] = useState(false)
-  const [sellOpen, setSellOpen] = useState(false)
+  const { wallet } = useWallet()
 
   const project = PROJECTS.find(p => p.id === id)
   if (!project) return <div className="p-10 text-center text-gray-400">Không tìm thấy dự án.</div>
 
-  const { status, representative: rep, tokens } = project
+  const { representative: rep, tokens } = project
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Breadcrumb */}
-      <div className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-3">
-          <button
-            onClick={() => navigate('/seller')}
-            className="flex items-center gap-2 text-sm font-heading font-bold tracking-wide text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" /> XEM CHI TIẾT
-          </button>
+      {/* Header */}
+      <div className="border-b border-gray-200 bg-white sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/seller')}
+              className="text-gray-900 hover:text-gray-600 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="font-heading font-bold text-base tracking-widest text-gray-900 uppercase">
+              CHI TIẾT DỰ ÁN
+            </h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 border border-gray-200 rounded-md bg-white px-3 py-1.5 shadow-sm">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm font-heading tracking-widest text-gray-600">
+                {wallet.address ? `${wallet.address.slice(0, 6)}...` : '0x742...'}
+              </span>
+              <span className="text-sm font-heading tracking-widest text-gray-600 border-l border-gray-300 pl-3">
+                {wallet.balance || '1.25'} ETH
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
-        {/* Page title */}
-        <h1 className="font-heading font-bold text-4xl tracking-wider text-gray-900 mb-0.5">CHI TIẾT DỰ ÁN CDM</h1>
-        <p className="text-xs font-heading font-bold tracking-widest text-gray-400 mb-6">PHÂN TÍCH KỸ THUẬT & LƯU TRỮ SỐ CÁI</p>
-        <hr className="border-gray-200 mb-8" />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left: Project info */}
@@ -64,15 +73,6 @@ export default function SellerDetailPage() {
               </div>
               <hr className="my-5 border-gray-100" />
 
-              {project.issuedYear && (
-                <>
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-                    <Field label="NĂM PHÁT HÀNH" value={String(project.issuedYear)} />
-                    <Field label="MÃ TÍN CHỈ" value={project.tokenCode ?? '—'} />
-                  </div>
-                  <hr className="my-5 border-gray-100" />
-                </>
-              )}
 
               <div>
                 <div className="font-heading text-xs font-bold tracking-widest text-gray-400 mb-1">LINK METADATA</div>
@@ -102,8 +102,8 @@ export default function SellerDetailPage() {
               </div>
             </div>
 
-            {/* Token table (if issued) */}
-            {status === 'token-issued' && tokens && tokens.length > 0 && (
+            {/* Token table */}
+            {tokens && tokens.length > 0 && (
               <div className="border border-gray-200 rounded mt-5 overflow-hidden">
                 <table className="w-full">
                   <thead>
@@ -112,7 +112,6 @@ export default function SellerDetailPage() {
                       <th className="text-left font-heading text-xs font-bold tracking-widest text-gray-400 px-5 py-3">MÃ TÍN CHỈ</th>
                       <th className="text-center font-heading text-xs font-bold tracking-widest text-gray-400 px-5 py-3">SỐ LƯỢNG HIỆN CÓ</th>
                       <th className="text-center font-heading text-xs font-bold tracking-widest text-gray-400 px-5 py-3">GIÁ</th>
-                      <th className="text-center font-heading text-xs font-bold tracking-widest text-gray-400 px-5 py-3"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -121,13 +120,8 @@ export default function SellerDetailPage() {
                         <td className="px-5 py-3 text-sm text-gray-700">{t.year}</td>
                         <td className="px-5 py-3 font-mono text-xs text-gray-500">{t.tokenCode}</td>
                         <td className="px-5 py-3 font-bold text-center text-gray-900">{t.quantity}</td>
-                        <td className="px-5 py-3 text-center font-bold text-green-700">
+                        <td className="px-5 py-3 text-center font-bold text-green-700 last:table-cell pr-5">
                           {t.price ?? <span className="text-gray-300">-</span>}
-                        </td>
-                        <td className="px-5 py-3 text-center">
-                          <button className="text-gray-400 hover:text-green-700 transition-colors cursor-pointer">
-                            <Pencil className="w-4 h-4" />
-                          </button>
                         </td>
                       </tr>
                     ))}
@@ -136,35 +130,6 @@ export default function SellerDetailPage() {
               </div>
             )}
 
-            {/* Action buttons */}
-            <div className="flex gap-4 mt-6">
-              {status === 'pending' && (
-                <button disabled className="flex-1 bg-gray-200 text-gray-400 font-heading font-bold text-sm tracking-widest py-3 rounded-sm cursor-not-allowed">
-                  XÁC THỰC
-                </button>
-              )}
-              {status === 'approved' && (
-                <button disabled className="flex-1 bg-gray-200 text-gray-400 font-heading font-bold text-sm tracking-widest py-3 rounded-sm cursor-not-allowed">
-                  ĐÃ PHÊ DUYỆT
-                </button>
-              )}
-              {status === 'token-issued' && (
-                <>
-                  <button
-                    onClick={() => setBurnOpen(true)}
-                    className="flex-1 border-2 border-green-700 text-green-700 font-heading font-bold text-sm tracking-widest py-3 rounded-sm hover:bg-green-700 hover:text-white transition-colors cursor-pointer"
-                  >
-                    TIÊU HỦY TÍN CHỈ
-                  </button>
-                  <button
-                    onClick={() => setSellOpen(true)}
-                    className="flex-1 bg-green-700 text-white font-heading font-bold text-sm tracking-widest py-3 rounded-sm hover:bg-green-800 transition-colors cursor-pointer"
-                  >
-                    ĐĂNG BÁN TÍN CHỈ
-                  </button>
-                </>
-              )}
-            </div>
           </div>
 
           {/* Right: Representative */}
@@ -196,9 +161,6 @@ export default function SellerDetailPage() {
       </div>
 
       <Footer />
-
-      <BurnModal isOpen={burnOpen} onClose={() => setBurnOpen(false)} project={project} />
-      <SetPriceModal isOpen={sellOpen} onClose={() => setSellOpen(false)} project={project} onSave={() => {}} />
     </div>
   )
 }

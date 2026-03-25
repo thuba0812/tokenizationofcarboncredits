@@ -1,15 +1,11 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import ProjectCard from '../../components/ProjectCard'
 import SearchBar from '../../components/SearchBar'
-import DataTable from '../../components/DataTable'
 import BurnModal from '../../components/modals/BurnModal'
-import { PROJECTS, TRANSACTIONS, PURCHASED_CREDITS } from '../../data/mockData'
+import { PURCHASED_CREDITS } from '../../data/mockData'
 import type { Project } from '../../types'
 import { Download, Flame } from 'lucide-react'
 
 export default function BuyerHomePage() {
-  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [burnProject, setBurnProject] = useState<Project | null>(null)
 
@@ -60,10 +56,6 @@ export default function BuyerHomePage() {
             </div>
           ))}
         </div>
-
-        {/* Wallet activity */}
-        <h2 className="font-heading font-bold text-2xl tracking-widest text-gray-900 mb-5">HOẠT ĐỘNG SỐ CÁI GẦN ĐÂY</h2>
-        <DataTable transactions={TRANSACTIONS} />
       </div>
 
       <BurnModal

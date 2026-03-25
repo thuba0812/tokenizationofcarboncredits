@@ -1,4 +1,25 @@
-import type { Project, Transaction, PurchasedCredit } from '../types'
+import type { Project, Transaction, PurchasedCredit, Certificate } from '../types'
+
+
+export const CERTIFICATES: Certificate[] = [
+  {
+    id: 'CERT-001',
+    projectId: '2',
+    projectName: 'Phục hồi rừng ngập mặn Cần Giờ Giai đoạn II',
+    projectCode: 'VN-RE-2024- 001',
+    date: '03/09/2025',
+    quantity: 200,
+  },
+  {
+    id: 'CERT-002',
+    projectId: '2',
+    projectName: 'Phục hồi rừng ngập mặn Cần Giờ Giai đoạn II',
+    projectCode: 'VN-RE-2024- 001',
+    date: '03/09/2025',
+    quantity: 150,
+  },
+]
+
 
 // ─── Landscape images using Picsum Photos ───────────────────────────────────
 const THUMBNAILS = [
@@ -61,6 +82,9 @@ export const PROJECTS: Project[] = [
     representative: { ...baseRep, company: 'Công ty GreenForest VN' },
     issuedYear: 2024,
     tokenCode: 'kjadghijhuiau',
+    tokens: [
+      { year: 2024, tokenCode: '0x882a...b291c9e3', quantity: 150, available: 150 },
+    ],
   },
   {
     id: '3',
@@ -77,6 +101,9 @@ export const PROJECTS: Project[] = [
     status: 'pending',
     thumbnail: THUMBNAILS[4],
     representative: { ...baseRep, company: 'Solar VN Corp' },
+    tokens: [
+      { year: 2024, tokenCode: '0xabc1...def3', quantity: 200, available: 200 },
+    ],
   },
   {
     id: '4',

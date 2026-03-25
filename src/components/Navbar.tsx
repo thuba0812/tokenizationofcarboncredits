@@ -1,4 +1,4 @@
-import { Wallet, Wifi, WifiOff } from 'lucide-react'
+import { Wallet, WifiOff } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import type { UserRole, WalletState } from '../types'
 
@@ -13,7 +13,7 @@ export default function Navbar({ wallet, onConnect, role, onRoleChange }: Navbar
   const location = useLocation()
 
   const navLinks: { label: string; path: string }[] = role === 'seller'
-    ? [{ label: 'Trang chủ', path: '/seller' }, { label: 'Thị trường', path: '/marketplace' }]
+    ? [{ label: 'Thị trường', path: '/marketplace' }, { label: 'Tài sản', path: '/seller' }]
     : role === 'buyer'
     ? [{ label: 'Trang chủ', path: '/buyer' }, { label: 'Thị trường', path: '/marketplace' }]
     : [{ label: 'Phát hành token', path: '/moderator' }, { label: 'Thị trường', path: '/marketplace' }]
@@ -23,7 +23,7 @@ export default function Navbar({ wallet, onConnect, role, onRoleChange }: Navbar
       <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link to="/" className="font-heading font-bold text-base tracking-widest text-gray-900 whitespace-nowrap hover:text-green-700 transition-colors duration-150">
-          HỆ THỐNG CARBON CDM
+          CARBON X
         </Link>
 
         {/* Nav links */}
@@ -70,10 +70,16 @@ export default function Navbar({ wallet, onConnect, role, onRoleChange }: Navbar
             </div>
           ) : null}
 
-          {/* Connect button */}
+        {/* Connect button */}
           <button
-            onClick={onConnect}
-            className="flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white font-heading font-bold text-xs tracking-widest px-4 py-2 rounded transition-colors duration-150 cursor-pointer whitespace-nowrap"
+            onClick={() => {
+              onConnect()
+            }}
+            className={`flex items-center gap-2 font-heading font-bold text-xs tracking-widest px-4 py-2 rounded transition-colors duration-150 whitespace-nowrap ${
+              wallet.isConnected
+                ? 'bg-red-700 hover:bg-red-800 text-white cursor-pointer'
+                : 'bg-green-700 hover:bg-green-800 text-white cursor-pointer'
+            }`}
           >
             {wallet.isConnected ? (
               <><WifiOff className="w-4 h-4" /> NGẮT KẾT NỐI</>

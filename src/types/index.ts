@@ -70,3 +70,12 @@ export interface PurchasedCredit {
   pricePerToken: number
   purchaseDate: string
 }
+// ─── Certificate ────────────────────────────────────────────────────────────
+export interface Certificate {
+  id: string
+  projectId: string
+  projectName: string
+  projectCode: string
+  date: string      // Format: DD/MM/YYYY
+  quantity: number
+}

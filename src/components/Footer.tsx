@@ -5,7 +5,7 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row justify-between gap-6">
           {/* Brand */}
           <div>
-            <div className="font-heading font-bold text-green-700 text-lg tracking-widest mb-1">CARBON CDM</div>
+            <div className="font-heading font-bold text-green-700 text-lg tracking-widest mb-1">CARBON X</div>
             <p className="text-xs text-gray-500">© 2024 VIETNAM CARBON CREDIT SYSTEM. ALL RIGHTS RESERVED.</p>
           </div>
 

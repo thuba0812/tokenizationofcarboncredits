@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, CheckCircle, ExternalLink, Coins } from 'lucide-react'
+import { ArrowLeft, ExternalLink } from 'lucide-react'
 import Footer from '../../components/Footer'
 import StatusBadge from '../../components/StatusBadge'
 import { PROJECTS } from '../../data/mockData'
@@ -9,7 +9,7 @@ import type { ProjectStatus } from '../../types'
 export default function ModeratorDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [status, setStatus] = useState<ProjectStatus>(
+  const [status] = useState<ProjectStatus>(
     () => PROJECTS.find(p => p.id === id)?.status ?? 'pending'
   )
 
@@ -17,9 +17,6 @@ export default function ModeratorDetailPage() {
   if (!project) return <div className="p-10 text-center text-gray-400">Không tìm thấy dự án.</div>
 
   const rep = project.representative
-
-  const handleVerify = () => setStatus('approved')
-  const handleMintToken = () => setStatus('token-issued')
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -37,7 +34,7 @@ export default function ModeratorDetailPage() {
 
       <div className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
         <div className="flex items-center gap-4 mb-0.5">
-          <h1 className="font-heading font-bold text-4xl tracking-wider text-gray-900">CHI TIẾT DỰ ÁN CDM</h1>
+          <h1 className="font-heading font-bold text-4xl tracking-wider text-gray-900">CHI TIẾT DỰ ÁN</h1>
           <StatusBadge status={status} />
         </div>
         <p className="text-xs font-heading font-bold tracking-widest text-gray-400 mb-6">PHÂN TÍCH KỸ THUẬT & LƯU TRỮ SỐ CÁI</p>
@@ -69,8 +66,8 @@ export default function ModeratorDetailPage() {
                 <>
                   <hr className="my-5 border-gray-100" />
                   <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-                    <Field label="NĂM PHÁT HÀNH" value={String(project.issuedYear ?? 2024)} />
-                    <Field label="MÃ TÍN CHỈ" value={project.tokenCode ?? 'kjadghijhuiau'} />
+                    <Field label="MÃ TOKEN" value={project.tokenCode ?? 'CARBON-RED-2024'} />
+                    <Field label="MÃ GIAO DỊCH" value="0x7a23...f4e2f9b2" />
                   </div>
                 </>
               )}
@@ -102,39 +99,7 @@ export default function ModeratorDetailPage() {
                 </div>
               </div>
 
-              {/* Action button */}
-              <div className="mt-6">
-                {status === 'pending' && (
-                  <button
-                    onClick={handleVerify}
-                    className="w-full bg-green-700 hover:bg-green-800 text-white font-heading font-bold text-sm tracking-widest py-3 flex items-center justify-center gap-2 rounded-sm transition-colors cursor-pointer"
-                  >
-                    <CheckCircle className="w-4 h-4" /> XÁC THỰC
-                  </button>
-                )}
-                {status === 'approved' && (
-                  <div className="space-y-3">
-                    <div className="bg-green-50 border border-green-200 rounded py-3 px-4 text-center">
-                      <span className="font-heading font-bold text-sm tracking-widest text-green-700 flex items-center justify-center gap-2">
-                        <CheckCircle className="w-4 h-4" /> ĐÃ PHÊ DUYỆT
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleMintToken}
-                      className="w-full bg-green-700 hover:bg-green-800 text-white font-heading font-bold text-sm tracking-widest py-3 flex items-center justify-center gap-2 rounded-sm transition-colors cursor-pointer"
-                    >
-                      <Coins className="w-4 h-4" /> PHÁT HÀNH TOKEN
-                    </button>
-                  </div>
-                )}
-                {status === 'token-issued' && (
-                  <div className="bg-gray-100 border border-gray-200 rounded py-3 px-4 text-center">
-                    <span className="font-heading font-bold text-sm tracking-widest text-gray-500 flex items-center justify-center gap-2">
-                      <Coins className="w-4 h-4" /> ĐÃ CẤP TOKEN
-                    </span>
-                  </div>
-                )}
-              </div>
+
             </div>
           </div>
 
