@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ProjectCard from '../../components/ProjectCard'
 import SearchBar from '../../components/SearchBar'
-import { PROJECTS } from '../../data/mockData'
+import DataTable from '../../components/DataTable'
+import { PROJECTS, TRANSACTIONS } from '../../data/mockData'
+import { useWallet } from '../../contexts/WalletContext'
 
 export default function SellerHomePage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const { wallet } = useWallet()
 
   const filtered = PROJECTS.filter(p =>
     p.code.toLowerCase().includes(search.toLowerCase()) ||
@@ -34,6 +37,22 @@ export default function SellerHomePage() {
           <SearchBar value={search} onChange={setSearch} onFilter={() => {}} />
         </div>
 
+        {/* Action buttons */}
+        <div className="flex justify-end gap-3 mb-6">
+          <button 
+            onClick={() => navigate('/seller/sell/create')}
+            className="bg-green-700 hover:bg-green-800 text-white font-heading font-bold text-xs tracking-widest px-5 py-2.5 rounded-sm transition-colors duration-150 cursor-pointer"
+          >
+            ĐĂNG BÁN
+          </button>
+          <button 
+            onClick={() => navigate('/seller/burn/destroy')}
+            className="bg-gray-900 hover:bg-black text-white font-heading font-bold text-xs tracking-widest px-5 py-2.5 rounded-sm transition-colors duration-150 cursor-pointer"
+          >
+            TIÊU HỦY
+          </button>
+        </div>
+
         <hr className="border-gray-200 mb-8" />
 
         {/* Project grid */}
@@ -51,6 +70,15 @@ export default function SellerHomePage() {
           <div className="text-center py-20 text-gray-400">
             <p className="text-lg">Không tìm thấy dự án phù hợp.</p>
           </div>
+        )}
+
+        {/* Wallet Activity Section - Only show when connected */}
+        {wallet.isConnected && (
+          <>
+            <hr className="border-gray-200 my-12" />
+            <h2 className="font-heading font-bold text-2xl tracking-widest text-gray-900 mb-5">HOẠT ĐỘNG SỔ CÁI GẦN ĐÂY</h2>
+            <DataTable transactions={TRANSACTIONS} />
+          </>
         )}
       </div>
     </div>

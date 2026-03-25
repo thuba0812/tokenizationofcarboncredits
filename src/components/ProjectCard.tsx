@@ -11,7 +11,10 @@ export default function ProjectCard({ project, onViewDetail, showPriceBadge = tr
   const isPriceSet = hasPriceRange
 
   return (
-    <div className="bg-white border border-gray-200 rounded overflow-hidden hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer group">
+    <div 
+      onClick={() => onViewDetail(project.id)}
+      className="bg-white border border-gray-200 rounded overflow-hidden hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer group"
+    >
       {/* Thumbnail */}
       <div className="relative overflow-hidden">
         <img
@@ -28,7 +31,7 @@ export default function ProjectCard({ project, onViewDetail, showPriceBadge = tr
           }`}>
             {isPriceSet
               ? `${project.priceMin} - ${project.priceMax} USDT/TOKEN`
-              : 'CHƯA SET GIÁ'}
+              : 'CHƯA ĐĂNG BÁN'}
           </div>
         )}
       </div>
@@ -36,14 +39,12 @@ export default function ProjectCard({ project, onViewDetail, showPriceBadge = tr
       {/* Content */}
       <div className="p-4">
         <div className="font-heading text-xs font-bold tracking-widest text-gray-400 mb-1">MÃ DỰ ÁN</div>
-        <div className="font-heading font-bold text-lg text-gray-900 tracking-wide mb-2">{project.code}</div>
-        <p className="text-sm text-gray-500 leading-relaxed line-clamp-2 mb-4">{project.description}</p>
-        <button
-          onClick={() => onViewDetail(project.id)}
-          className="w-full border border-gray-900 text-gray-900 font-heading font-bold text-xs tracking-widest py-2 hover:bg-gray-900 hover:text-white transition-colors duration-150 cursor-pointer rounded-sm"
-        >
-          XEM CHI TIẾT
-        </button>
+        <div className="font-heading font-bold text-lg text-gray-900 tracking-wide mb-3">{project.code}</div>
+        <div className="font-heading font-bold text-3xl text-green-700 mb-3">
+          {project.tokenCount.toLocaleString('vi-VN')}
+          <span className="text-3xl font-bold text-green-700 ml-2">TOKEN</span>
+        </div>
+        <p className="text-sm text-gray-500 leading-relaxed line-clamp-2">{project.description}</p>
       </div>
     </div>
   )

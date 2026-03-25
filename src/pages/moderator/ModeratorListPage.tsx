@@ -5,6 +5,7 @@ import SearchBar from '../../components/SearchBar'
 import StatusBadge from '../../components/StatusBadge'
 import Footer from '../../components/Footer'
 import { PROJECTS } from '../../data/mockData'
+import BatchMintModal from '../../components/modals/BatchMintModal'
 
 const PAGE_SIZE = 4
 
@@ -12,6 +13,14 @@ export default function ModeratorListPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [showMintModal, setShowMintModal] = useState(false)
+
+  const mockBatches: any[] = [
+    { id: 1, range: '1 - 50', status: 'SUCCESS', txHash: '0x7a2...f4e2' },
+    { id: 2, range: '51 - 100', status: 'PROCESSING', message: 'Vui lòng xác nhận trên ví Metamask của bạn' },
+    { id: 3, range: '101 - 150', status: 'PENDING', message: 'Hệ thống đang chờ lệnh thực thi' },
+    { id: 4, range: '151 - 156', status: 'PENDING', message: 'Hệ thống đang chờ lệnh thực thi' },
+  ];
 
   const filtered = PROJECTS.filter(p =>
     p.code.toLowerCase().includes(search.toLowerCase()) ||
@@ -38,7 +47,10 @@ export default function ModeratorListPage() {
 
         {/* Mint button */}
         <div className="flex justify-end mb-5">
-          <button className="bg-green-700 hover:bg-green-800 text-white font-heading font-bold text-xs tracking-widest px-5 py-2.5 flex items-center gap-2 rounded-sm transition-colors cursor-pointer">
+          <button 
+            onClick={() => setShowMintModal(true)}
+            className="bg-green-700 hover:bg-green-800 text-white font-heading font-bold text-xs tracking-widest px-5 py-2.5 flex items-center gap-2 rounded-sm transition-colors cursor-pointer"
+          >
             <Plus className="w-4 h-4" /> PHÁT HÀNH TOKEN
           </button>
         </div>
@@ -115,6 +127,13 @@ export default function ModeratorListPage() {
       </div>
 
       <Footer />
+
+      <BatchMintModal 
+        isOpen={showMintModal}
+        onClose={() => setShowMintModal(false)}
+        totalProjects={156}
+        batches={mockBatches}
+      />
     </div>
   )
 }
