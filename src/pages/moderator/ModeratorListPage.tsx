@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import SearchBar from '../../components/SearchBar'
 import StatusBadge from '../../components/StatusBadge'
 import Footer from '../../components/Footer'
-import { PROJECTS } from '../../data/mockData'
+import { PROJECTS } from '../../database/mockData'
 import BatchMintModal from '../../components/modals/BatchMintModal'
 
 const PAGE_SIZE = 4

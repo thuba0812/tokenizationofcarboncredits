@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import Footer from '../../components/Footer'
 import BuyModal from '../../components/modals/BuyModal'
-import { PROJECTS } from '../../data/mockData'
+import { PROJECTS } from '../../database/mockData'
 import { useWallet } from '../../contexts/WalletContext'
 
 export default function BuyerDetailPage() {

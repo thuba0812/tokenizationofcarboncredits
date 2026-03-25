@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import ProjectCard from '../../components/ProjectCard'
 import SearchBar from '../../components/SearchBar'
 import DataTable from '../../components/DataTable'
-import { PROJECTS, TRANSACTIONS } from '../../data/mockData'
+import { PROJECTS, TRANSACTIONS } from '../../database/mockData'
 import { useWallet } from '../../contexts/WalletContext'
 
 export default function SellerHomePage() {
