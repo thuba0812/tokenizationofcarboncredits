@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import SearchBar from '../../components/SearchBar'
 import BurnModal from '../../components/modals/BurnModal'
-import { PURCHASED_CREDITS } from '../../data/mockData'
+import { PURCHASED_CREDITS } from '../../database/mockData'
 import type { Project } from '../../types'
 import { Download, Flame } from 'lucide-react'
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search } from 'lucide-react'
 import Footer from '../../components/Footer'
-import { CERTIFICATES } from '../../data/mockData'
+import { CERTIFICATES } from '../../database/mockData'
 import { useWallet } from '../../contexts/WalletContext'
 
 export default function CertificatePage() {

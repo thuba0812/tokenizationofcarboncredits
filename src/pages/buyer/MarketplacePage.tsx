@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import ProjectCard from '../../components/ProjectCard'
 import SearchBar from '../../components/SearchBar'
 import Footer from '../../components/Footer'
-import { PROJECTS } from '../../data/mockData'
+import { PROJECTS } from '../../database/mockData'
 
 export default function MarketplacePage() {
   const navigate = useNavigate()
