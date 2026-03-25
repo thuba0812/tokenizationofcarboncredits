@@ -45,6 +45,7 @@ export default function SellerDetailPage() {
       </div>
 
       <div className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
+        <hr className="border-gray-200 mb-8" />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left: Project info */}

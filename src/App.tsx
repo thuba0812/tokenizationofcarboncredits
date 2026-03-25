@@ -28,7 +28,8 @@ function AppContent({
     location.pathname === '/seller/sell/create' ||
     location.pathname === '/seller/burn/certificates' ||
     (/^\/seller\/[^/]+$/.test(location.pathname) && !['/seller/burn', '/seller/sell'].some(p => location.pathname.startsWith(p))) ||
-    (/^\/marketplace\/[^/]+$/.test(location.pathname))
+    (/^\/marketplace\/[^/]+$/.test(location.pathname)) ||
+    (/^\/moderator\/[^/]+$/.test(location.pathname))
 
   return (
     <div className="min-h-screen flex flex-col">

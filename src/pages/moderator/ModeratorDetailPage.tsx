@@ -4,11 +4,13 @@ import { ArrowLeft, ExternalLink } from 'lucide-react'
 import Footer from '../../components/Footer'
 import StatusBadge from '../../components/StatusBadge'
 import { PROJECTS } from '../../data/mockData'
+import { useWallet } from '../../contexts/WalletContext'
 import type { ProjectStatus } from '../../types'
 
 export default function ModeratorDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { wallet } = useWallet()
   const [status] = useState<ProjectStatus>(
     () => PROJECTS.find(p => p.id === id)?.status ?? 'pending'
   )
@@ -20,24 +22,36 @@ export default function ModeratorDetailPage() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Breadcrumb */}
-      <div className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-3">
-          <button
-            onClick={() => navigate('/moderator')}
-            className="flex items-center gap-2 text-sm font-heading font-bold tracking-wide text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" /> XEM CHI TIẾT
-          </button>
+      {/* Header */}
+      <div className="border-b border-gray-200 bg-white sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/moderator')}
+              className="text-gray-900 hover:text-gray-600 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="font-heading font-bold text-base tracking-widest text-gray-900 uppercase">
+              CHI TIẾT DỰ ÁN
+            </h1>
+            <StatusBadge status={status} />
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 border border-gray-200 rounded-md bg-white px-3 py-1.5 shadow-sm">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm font-heading tracking-widest text-gray-600">
+                {wallet.address ? `${wallet.address.slice(0, 6)}...` : '0x742...'}
+              </span>
+              <span className="text-sm font-heading tracking-widest text-gray-600 border-l border-gray-300 pl-3">
+                {wallet.balance || '1.25'} ETH
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
-        <div className="flex items-center gap-4 mb-0.5">
-          <h1 className="font-heading font-bold text-4xl tracking-wider text-gray-900">CHI TIẾT DỰ ÁN</h1>
-          <StatusBadge status={status} />
-        </div>
-        <p className="text-xs font-heading font-bold tracking-widest text-gray-400 mb-6">PHÂN TÍCH KỸ THUẬT & LƯU TRỮ SỐ CÁI</p>
         <hr className="border-gray-200 mb-8" />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
