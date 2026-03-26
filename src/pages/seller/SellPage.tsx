@@ -4,6 +4,8 @@ import { ArrowLeft, Search, RotateCcw, Tag, Check, ShieldCheck } from 'lucide-re
 import Footer from '../../components/Footer'
 import { useWallet } from '../../contexts/WalletContext'
 import { useProjects } from '../../hooks/useProjects'
+import { ethers } from 'ethers'
+import { CONTRACT_ADDRESSES, CARBON_TOKEN_ABI, MARKETPLACE_ABI } from '../../config/contracts'
 
 export default function SellPage() {
   const navigate = useNavigate()
@@ -17,12 +19,13 @@ export default function SellPage() {
   const { projects, loading } = useProjects()
 
   const filtered = projects.filter(p =>
-    p.code.toLowerCase().includes(search.toLowerCase()) ||
-    p.name.toLowerCase().includes(search.toLowerCase())
+    p.representative.walletAddress.toLowerCase() === wallet.address?.toLowerCase() &&
+    (p.code.toLowerCase().includes(search.toLowerCase()) ||
+    p.name.toLowerCase().includes(search.toLowerCase()))
   ).map(p => ({
     ...p,
-    tableTokens: p.tokens?.length ? p.tokens : [{ year: p.issuedYear || 2024, quantity: p.tokenCount, available: p.tokenCount, price: p.priceMin, tokenCode: p.tokenCode || '' }]
-  }))
+    tableTokens: p.tokens?.filter(t => t.status === 'MINTED') || []
+  })).filter(p => p.tableTokens.length > 0)
 
   const allTokensList = filtered.flatMap(p => p.tableTokens.map(t => ({ 
     projectId: p.id, 
@@ -157,10 +160,51 @@ export default function SellPage() {
                             itemsToSell.push({
                               vintageId: token.vintageId,
                               quantity,
-                              price
+                              price,
+                              txHash: '',
+                              onchainListingId: ''
                             });
                           }
                         }
+                      }
+
+                      if (itemsToSell.length === 0) {
+                         setIsSubmitting(false);
+                         return;
+                      }
+
+                      // Web3 logic
+                      if (!window.ethereum) throw new Error("Vui lòng cài đặt MetaMask!");
+                      const provider = new ethers.BrowserProvider(window.ethereum as import('ethers').Eip1193Provider);
+                      const signer = await provider.getSigner();
+
+                      const carbonContract = new ethers.Contract(CONTRACT_ADDRESSES.CARBON_TOKEN, CARBON_TOKEN_ABI, signer);
+                      const marketContract = new ethers.Contract(CONTRACT_ADDRESSES.MARKETPLACE, MARKETPLACE_ABI, signer);
+
+                      // Check approval
+                      const isApproved = await carbonContract.isApprovedForAll(wallet.address, CONTRACT_ADDRESSES.MARKETPLACE);
+                      if (!isApproved) {
+                        const approveTx = await carbonContract.setApprovalForAll(CONTRACT_ADDRESSES.MARKETPLACE, true);
+                        await approveTx.wait();
+                      }
+
+                      // Call createListing for each item
+                      for (const item of itemsToSell) {
+                         const tx = await marketContract.createListing(item.vintageId, item.price, item.quantity);
+                         const receipt = await tx.wait(); // Wait for confirmation
+                         
+                         let onchainListingId = null;
+                         for (const log of receipt.logs) {
+                            try {
+                               const parsed = marketContract.interface.parseLog(log);
+                               if (parsed && parsed.name === 'ListingCreated') {
+                                   onchainListingId = parsed.args.listingId.toString();
+                               }
+                            } catch (e) {}
+                         }
+                         
+                         item.txHash = receipt.hash;
+                         item.onchainListingId = onchainListingId || '';
                       }
                       
                       const { listingRepository } = await import('../../repositories/ListingRepository');

@@ -22,3 +22,14 @@ dist-ssr
 *.sln
 *.sw?
 node_modules/
+
+# dotenv environment variables file
+.env
+.env.*
+!.env.example
+
+# Hardhat generated
+artifacts/
+cache/
+typechain-types/
+types/

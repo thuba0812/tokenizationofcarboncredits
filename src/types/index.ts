@@ -20,6 +20,10 @@ export interface TokenYear {
   quantity: number
   available: number
   price?: number // USDT per token
+  status?: string // 'MINTING' | 'MINTED' | 'RETIRED'
+  marketAvailable?: number
+  listingId?: number
+  onchainListingId?: number
 }
 
 // ─── CDM Project ────────────────────────────────────────────────────────────

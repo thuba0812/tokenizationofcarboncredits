@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import SearchBar from '../../components/SearchBar'
-import StatusBadge from '../../components/StatusBadge'
 import Footer from '../../components/Footer'
 import { useProjects } from '../../hooks/useProjects'
 import BatchMintModal from '../../components/modals/BatchMintModal'
@@ -15,21 +14,20 @@ export default function ModeratorListPage() {
   const [page, setPage] = useState(1)
   const [showMintModal, setShowMintModal] = useState(false)
 
-  const mockBatches: any[] = [
-    { id: 1, range: '1 - 50', status: 'SUCCESS', txHash: '0x7a2...f4e2' },
-    { id: 2, range: '51 - 100', status: 'PROCESSING', message: 'Vui lòng xác nhận trên ví Metamask của bạn' },
-    { id: 3, range: '101 - 150', status: 'PENDING', message: 'Hệ thống đang chờ lệnh thực thi' },
-    { id: 4, range: '151 - 156', status: 'PENDING', message: 'Hệ thống đang chờ lệnh thực thi' },
-  ];
+
 
   const { projects, loading } = useProjects()
 
-  const filtered = projects.filter(p =>
-    p.code.toLowerCase().includes(search.toLowerCase()) ||
-    p.name.toLowerCase().includes(search.toLowerCase())
+  const filteredTokens = projects.flatMap(p => 
+    (p.tokens || []).map(t => ({ project: p, token: t }))
+  ).filter(item =>
+    item.project.code.toLowerCase().includes(search.toLowerCase()) ||
+    item.project.name.toLowerCase().includes(search.toLowerCase()) ||
+    item.token.tokenCode.toLowerCase().includes(search.toLowerCase())
   )
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const totalPages = Math.ceil(filteredTokens.length / PAGE_SIZE)
+  const paginated = filteredTokens.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   if (loading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>
 
@@ -65,28 +63,42 @@ export default function ModeratorListPage() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left font-heading text-xs font-bold tracking-widest text-gray-400 px-5 py-3">MÃ DỰ ÁN</th>
+                <th className="text-left font-heading text-xs font-bold tracking-widest text-gray-400 px-5 py-3">MÃ TÍN CHỈ</th>
                 <th className="text-left font-heading text-xs font-bold tracking-widest text-gray-400 px-5 py-3">TÊN DỰ ÁN</th>
-                <th className="text-left font-heading text-xs font-bold tracking-widest text-gray-400 px-5 py-3">TRẠNG THÁI</th>
+                <th className="text-left font-heading text-xs font-bold tracking-widest text-gray-400 px-5 py-3">SỐ LƯỢNG TÍN CHỈ</th>
+                <th className="text-left font-heading text-xs font-bold tracking-widest text-gray-400 px-5 py-3">TRẠNG THÁI (LÔ)</th>
                 <th className="text-center font-heading text-xs font-bold tracking-widest text-gray-400 px-5 py-3">HÀNH ĐỘNG</th>
               </tr>
             </thead>
             <tbody>
-              {paginated.map(p => (
-                <tr key={p.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors duration-100">
-                  <td className="px-5 py-4 font-mono text-sm text-gray-700">{p.code}</td>
+              {paginated.map(item => (
+                <tr key={`${item.project.id}-${item.token.year}`} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors duration-100">
+                  <td className="px-5 py-4 font-mono text-sm text-gray-700">{item.project.code}</td>
+                  <td className="px-5 py-4 font-mono text-sm text-gray-700">{item.token.tokenCode}</td>
                   <td className="px-5 py-4">
-                    <div className="font-medium text-sm text-gray-900">{p.name}</div>
-                    <div className="text-xs text-gray-400 uppercase tracking-wider mt-0.5">{p.domain}</div>
+                    <div className="font-medium text-sm text-gray-900">{item.project.name}</div>
+                    <div className="text-xs text-gray-400 uppercase tracking-wider mt-0.5">NĂM (VINTAGE): {item.token.year}</div>
+                  </td>
+                  <td className="px-5 py-4 font-mono text-sm text-gray-700 font-bold">
+                    {item.token.quantity.toLocaleString('en-US')} <span className="text-[10px] bg-gray-100 px-1 py-0.5 rounded text-gray-500 font-sans">TÍN CHỈ</span>
                   </td>
                   <td className="px-5 py-4">
-                    <StatusBadge status={p.status} />
+                    {item.token.status === 'MINTED' ? (
+                      <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-sm font-bold tracking-wider">ĐÃ PHÁT HÀNH (MINTED)</span>
+                    ) : item.token.status === 'MINTING' ? (
+                      <span className="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-sm font-bold tracking-wider">CHỜ PHÁT HÀNH (MINTING)</span>
+                    ) : item.token.status === 'RETIRED' ? (
+                      <span className="inline-block bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-sm font-bold tracking-wider">ĐÃ XÓA SỔ (RETIRED)</span>
+                    ) : (
+                      <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-sm font-bold tracking-wider">{item.token.status || 'N/A'}</span>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-center">
                     <button
-                      onClick={() => navigate(`/moderator/${p.id}`)}
+                      onClick={() => navigate(`/moderator/${item.project.id}`)}
                       className="bg-green-700 hover:bg-green-800 text-white font-heading font-bold text-xs tracking-widest px-4 py-1.5 rounded-sm transition-colors cursor-pointer"
                     >
-                      XEM CHI TIẾT
+                      XEM DỰ ÁN
                     </button>
                   </td>
                 </tr>
@@ -97,7 +109,7 @@ export default function ModeratorListPage() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between mt-4">
-          <span className="text-sm text-gray-500">Hiển thị {paginated.length} trên {filtered.length} dự án</span>
+          <span className="text-sm text-gray-500">Hiển thị {paginated.length} trên {filteredTokens.length} lô tín chỉ</span>
           <div className="flex items-center gap-1">
             <button
               disabled={page === 1}
@@ -134,9 +146,10 @@ export default function ModeratorListPage() {
 
       <BatchMintModal 
         isOpen={showMintModal}
-        onClose={() => setShowMintModal(false)}
-        totalProjects={156}
-        batches={mockBatches}
+        onClose={() => {
+          setShowMintModal(false);
+          window.location.reload();
+        }}
       />
     </div>
   )

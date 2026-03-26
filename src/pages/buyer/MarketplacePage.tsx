@@ -22,6 +22,14 @@ export default function MarketplacePage() {
       return item.project;
     })
 
+  const uniqueProjectsMap = new Map();
+  listed.forEach(proj => {
+    if (!uniqueProjectsMap.has(proj.id)) {
+      uniqueProjectsMap.set(proj.id, proj);
+    }
+  });
+  const uniqueListed = Array.from(uniqueProjectsMap.values());
+
   if (loading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>
 
   return (
@@ -44,9 +52,9 @@ export default function MarketplacePage() {
         <hr className="border-gray-200 mb-8" />
 
         {/* Grid */}
-        {listed.length > 0 ? (
+        {uniqueListed.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {listed.map(project => (
+            {uniqueListed.map(project => (
               <ProjectCard
                 key={project.id}
                 project={project}
