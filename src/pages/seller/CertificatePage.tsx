@@ -2,15 +2,19 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search } from 'lucide-react'
 import Footer from '../../components/Footer'
-import { CERTIFICATES } from '../../database/mockData'
 import { useWallet } from '../../contexts/WalletContext'
+import { useCertificates } from '../../hooks/usePortfolio'
+import type { Certificate } from '../../types'
 
 export default function CertificatePage() {
   const navigate = useNavigate()
   const { wallet } = useWallet()
   const [search, setSearch] = useState('')
+  
+  const orgId = 1; // MOCK Organization ID
+  const { certificates, loading } = useCertificates(orgId)
 
-  const filteredCertificates = CERTIFICATES.filter(cert =>
+  const filteredCertificates = certificates.filter(cert =>
     cert.projectName.toLowerCase().includes(search.toLowerCase()) ||
     cert.projectCode.toLowerCase().includes(search.toLowerCase()) ||
     cert.id.toLowerCase().includes(search.toLowerCase())
@@ -28,7 +32,9 @@ export default function CertificatePage() {
     }
     acc[key].certs.push(cert)
     return acc
-  }, {} as Record<string, { name: string, code: string, certs: typeof CERTIFICATES }>)
+  }, {} as Record<string, { name: string, code: string, certs: Certificate[] }>)
+
+  if (loading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -47,15 +53,17 @@ export default function CertificatePage() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 border border-gray-200 rounded-md bg-white px-3 py-1.5 shadow-sm">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm font-heading tracking-widest text-gray-600">
-                {wallet.address ? `${wallet.address.slice(0, 6)}...` : '0x742...'}
-              </span>
-              <span className="text-sm font-heading tracking-widest text-gray-600 border-l border-gray-300 pl-3">
-                {wallet.balance || '1.25'} ETH
-              </span>
-            </div>
+            {wallet.isConnected && (
+              <div className="flex items-center gap-3 border border-gray-200 rounded-md px-3 py-1.5 shadow-sm">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-heading tracking-widest text-gray-600">
+                  {wallet.address ? `${wallet.address.slice(0, 6)}...` : '0x742...'}
+                </span>
+                <span className="text-sm font-heading tracking-widest text-gray-600 border-l border-gray-300 pl-3">
+                  {wallet.balance || '1.25'} ETH
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

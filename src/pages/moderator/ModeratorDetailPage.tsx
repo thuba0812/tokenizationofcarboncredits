@@ -1,21 +1,19 @@
-import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import Footer from '../../components/Footer'
 import StatusBadge from '../../components/StatusBadge'
-import { PROJECTS } from '../../database/mockData'
 import { useWallet } from '../../contexts/WalletContext'
-import type { ProjectStatus } from '../../types'
+import { useProject } from '../../hooks/useProjects'
 
 export default function ModeratorDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { wallet } = useWallet()
-  const [status] = useState<ProjectStatus>(
-    () => PROJECTS.find(p => p.id === id)?.status ?? 'pending'
-  )
+  
+  const { project, loading } = useProject(id || null)
+  const status = project?.status ?? 'pending'
 
-  const project = PROJECTS.find(p => p.id === id)
+  if (loading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>
   if (!project) return <div className="p-10 text-center text-gray-400">Không tìm thấy dự án.</div>
 
   const rep = project.representative
@@ -38,15 +36,17 @@ export default function ModeratorDetailPage() {
             <StatusBadge status={status} />
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 border border-gray-200 rounded-md bg-white px-3 py-1.5 shadow-sm">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm font-heading tracking-widest text-gray-600">
-                {wallet.address ? `${wallet.address.slice(0, 6)}...` : '0x742...'}
-              </span>
-              <span className="text-sm font-heading tracking-widest text-gray-600 border-l border-gray-300 pl-3">
-                {wallet.balance || '1.25'} ETH
-              </span>
-            </div>
+            {wallet.isConnected && (
+              <div className="flex items-center gap-3 border border-gray-200 rounded-md bg-white px-3 py-1.5 shadow-sm">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-heading tracking-widest text-gray-600">
+                  {wallet.address ? `${wallet.address.slice(0, 6)}...` : '0x742...'}
+                </span>
+                <span className="text-sm font-heading tracking-widest text-gray-600 border-l border-gray-300 pl-3">
+                  {wallet.balance || '1.25'} ETH
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

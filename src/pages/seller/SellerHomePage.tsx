@@ -3,18 +3,26 @@ import { useNavigate } from 'react-router-dom'
 import ProjectCard from '../../components/ProjectCard'
 import SearchBar from '../../components/SearchBar'
 import DataTable from '../../components/DataTable'
-import { PROJECTS, TRANSACTIONS } from '../../database/mockData'
 import { useWallet } from '../../contexts/WalletContext'
+import { useProjects } from '../../hooks/useProjects'
+import { usePortfolio } from '../../hooks/usePortfolio'
 
 export default function SellerHomePage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const { wallet } = useWallet()
 
-  const filtered = PROJECTS.filter(p =>
+  const { projects, loading: pLoading } = useProjects()
+  
+  const walletId = 1; // Tạm thiết lập Organization/Seller wallet = 1
+  const { transactions, loading: tLoading } = usePortfolio(walletId)
+
+  const filtered = projects.filter(p =>
     p.code.toLowerCase().includes(search.toLowerCase()) ||
     p.name.toLowerCase().includes(search.toLowerCase())
   )
+
+  if (pLoading || tLoading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>
 
   return (
     <div className="min-h-screen bg-white">
@@ -77,7 +85,7 @@ export default function SellerHomePage() {
           <>
             <hr className="border-gray-200 my-12" />
             <h2 className="font-heading font-bold text-2xl tracking-widest text-gray-900 mb-5">HOẠT ĐỘNG SỔ CÁI GẦN ĐÂY</h2>
-            <DataTable transactions={TRANSACTIONS} />
+            <DataTable transactions={transactions} />
           </>
         )}
       </div>

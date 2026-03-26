@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, AlertTriangle, RotateCcw, Trash2, Check, ShieldCheck } from 'lucide-react'
 import Footer from '../../components/Footer'
-import { PROJECTS } from '../../database/mockData'
 import { useWallet } from '../../contexts/WalletContext'
+import { useProjects } from '../../hooks/useProjects'
 
 export default function BurnPage() {
   const navigate = useNavigate()
@@ -17,7 +17,9 @@ export default function BurnPage() {
   const quota = 125000
   const maxBurn = 12500
 
-  const filtered = PROJECTS.filter(p =>
+  const { projects, loading } = useProjects()
+
+  const filtered = projects.filter(p =>
     p.code.toLowerCase().includes(search.toLowerCase()) ||
     p.name.toLowerCase().includes(search.toLowerCase())
   ).map(p => ({
@@ -80,6 +82,8 @@ export default function BurnPage() {
       handleQuantityChange(projectId, year, 0, max)
     }
   }
+
+  if (loading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>
 
   return (
     <div className="min-h-screen bg-white flex flex-col relative font-sans">
@@ -257,15 +261,17 @@ export default function BurnPage() {
             >
               CHỨNG NHẬN TIÊU HỦY
             </button>
-            <div className="flex items-center gap-3 border border-gray-200 rounded-md bg-white px-3 py-1.5 shadow-sm">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm font-heading tracking-widest text-gray-600">
-                {wallet.address ? `${wallet.address.slice(0, 6)}...` : '0x742...'}
-              </span>
-              <span className="text-sm font-heading tracking-widest text-gray-600 border-l border-gray-300 pl-3">
-                {wallet.balance || '1.25'} ETH
-              </span>
-            </div>
+            {wallet.isConnected && (
+              <div className="flex items-center gap-3 border border-gray-200 rounded-md bg-white px-3 py-1.5 shadow-sm">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-heading tracking-widest text-gray-600">
+                  {wallet.address ? `${wallet.address.slice(0, 6)}...` : '0x742...'}
+                </span>
+                <span className="text-sm font-heading tracking-widest text-gray-600 border-l border-gray-300 pl-3">
+                  {wallet.balance || '1.25'} ETH
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
