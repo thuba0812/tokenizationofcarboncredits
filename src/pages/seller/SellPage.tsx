@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, RotateCcw, Tag, Check, ShieldCheck } from 'lucide-react'
 import Footer from '../../components/Footer'
-import { PROJECTS } from '../../database/mockData'
 import { useWallet } from '../../contexts/WalletContext'
+import { useProjects } from '../../hooks/useProjects'
 
 export default function SellPage() {
   const navigate = useNavigate()
@@ -13,8 +13,10 @@ export default function SellPage() {
   const [selectedPrices, setSelectedPrices] = useState<Record<string, number>>({})
   const [showConfirmSell, setShowConfirmSell] = useState(false)
   const [showSuccessSell, setShowSuccessSell] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { projects, loading } = useProjects()
 
-  const filtered = PROJECTS.filter(p =>
+  const filtered = projects.filter(p =>
     p.code.toLowerCase().includes(search.toLowerCase()) ||
     p.name.toLowerCase().includes(search.toLowerCase())
   ).map(p => ({
@@ -104,6 +106,8 @@ export default function SellPage() {
 
   const distinctProjectsCount = new Set(Object.keys(selectedTokens).map(k => k.split('-')[0])).size
 
+  if (loading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>
+
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans relative">
       {/* Confirmation Modal */}
@@ -135,13 +139,51 @@ export default function SellPage() {
                   HỦY
                 </button>
                 <button
-                  onClick={() => {
-                    setShowConfirmSell(false)
-                    setShowSuccessSell(true)
+                  disabled={isSubmitting}
+                  onClick={async () => {
+                    if (!wallet.address) return;
+                    setIsSubmitting(true);
+                    try {
+                      const itemsToSell = [];
+                      for (const [key, quantity] of Object.entries(selectedTokens)) {
+                        if (quantity > 0) {
+                          const [projectId, yearStr] = key.split('-');
+                          const price = selectedPrices[key];
+                          
+                          const proj = filtered.find(p => p.id === projectId);
+                          const token = proj?.tableTokens.find(t => t.year === Number(yearStr));
+                          
+                          if (token?.vintageId) {
+                            itemsToSell.push({
+                              vintageId: token.vintageId,
+                              quantity,
+                              price
+                            });
+                          }
+                        }
+                      }
+                      
+                      const { listingRepository } = await import('../../repositories/ListingRepository');
+                      const success = await listingRepository.createListings(wallet.address, itemsToSell);
+                      
+                      if (success) {
+                        setShowConfirmSell(false);
+                        setShowSuccessSell(true);
+                      } else {
+                         alert('Có lỗi xảy ra khi lưu lên cơ sở dữ liệu.');
+                      }
+                    } catch (err) {
+                      console.error('Lỗi quá trình bán:', err);
+                      alert('Thao tác không thành công.');
+                    } finally {
+                      setIsSubmitting(false);
+                    }
                   }}
-                  className="flex-1 py-5 bg-black font-heading font-bold text-base tracking-widest text-white uppercase hover:bg-gray-900 transition-colors cursor-pointer"
+                  className={`flex-1 py-5 font-heading font-bold text-base tracking-widest uppercase transition-colors cursor-pointer ${
+                    isSubmitting ? 'bg-gray-400 text-white cursor-wait' : 'bg-black text-white hover:bg-gray-900'
+                  }`}
                 >
-                  XÁC NHẬN
+                  {isSubmitting ? 'ĐANG XỬ LÝ...' : 'XÁC NHẬN'}
                 </button>
               </div>
 
@@ -222,15 +264,17 @@ export default function SellPage() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 border border-gray-200 rounded-md bg-white px-3 py-1.5 shadow-sm">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm font-heading tracking-widest text-gray-600">
-                {wallet.address ? `${wallet.address.slice(0, 6)}...` : '0x742...'}
-              </span>
-              <span className="text-sm font-heading tracking-widest text-gray-600 border-l border-gray-300 pl-3">
-                {wallet.balance || '1.25'} ETH
-              </span>
-            </div>
+            {wallet.isConnected && (
+              <div className="flex items-center gap-3 border border-gray-200 rounded-md bg-white px-3 py-1.5 shadow-sm">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-heading tracking-widest text-gray-600">
+                  {wallet.address ? `${wallet.address.slice(0, 6)}...` : '0x742...'}
+                </span>
+                <span className="text-sm font-heading tracking-widest text-gray-600 border-l border-gray-300 pl-3">
+                  {wallet.balance || '1.25'} ETH
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

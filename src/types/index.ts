@@ -1,6 +1,6 @@
 // ─── Project Status & Role Types ────────────────────────────────────────────
 export type ProjectStatus = 'pending' | 'approved' | 'token-issued'
-export type UserRole = 'seller' | 'buyer' | 'moderator'
+export type UserRole = 'ENTERPRISE' | 'REGULATORY_AGENCY' | 'GUEST'
 
 // ─── Representative / Company ───────────────────────────────────────────────
 export interface Representative {
@@ -14,6 +14,7 @@ export interface Representative {
 
 // ─── Token by Year ──────────────────────────────────────────────────────────
 export interface TokenYear {
+  vintageId?: number
   year: number
   tokenCode: string
   quantity: number
@@ -49,6 +50,7 @@ export interface WalletState {
   address: string | null
   balance: string
   isConnected: boolean
+  role: UserRole
 }
 
 // ─── Transaction ────────────────────────────────────────────────────────────

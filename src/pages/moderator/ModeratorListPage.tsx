@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import SearchBar from '../../components/SearchBar'
 import StatusBadge from '../../components/StatusBadge'
 import Footer from '../../components/Footer'
-import { PROJECTS } from '../../database/mockData'
+import { useProjects } from '../../hooks/useProjects'
 import BatchMintModal from '../../components/modals/BatchMintModal'
 
 const PAGE_SIZE = 4
@@ -22,12 +22,16 @@ export default function ModeratorListPage() {
     { id: 4, range: '151 - 156', status: 'PENDING', message: 'Hệ thống đang chờ lệnh thực thi' },
   ];
 
-  const filtered = PROJECTS.filter(p =>
+  const { projects, loading } = useProjects()
+
+  const filtered = projects.filter(p =>
     p.code.toLowerCase().includes(search.toLowerCase()) ||
     p.name.toLowerCase().includes(search.toLowerCase())
   )
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  if (loading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>
 
   return (
     <div className="min-h-screen bg-white flex flex-col">

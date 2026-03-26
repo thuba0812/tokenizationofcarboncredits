@@ -3,16 +3,17 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import Footer from '../../components/Footer'
 import BuyModal from '../../components/modals/BuyModal'
-import { PROJECTS } from '../../database/mockData'
 import { useWallet } from '../../contexts/WalletContext'
+import { useProject } from '../../hooks/useProjects'
 
 export default function BuyerDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { wallet } = useWallet()
+  const { wallet, connect } = useWallet()
   const [buyOpen, setBuyOpen] = useState(false)
+  const { project, loading } = useProject(id || null)
 
-  const project = PROJECTS.find(p => p.id === id)
+  if (loading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>
   if (!project) return <div className="p-10 text-center text-gray-400">Không tìm thấy dự án.</div>
 
   const { representative: rep } = project
@@ -34,15 +35,17 @@ export default function BuyerDetailPage() {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 border border-gray-200 rounded-md bg-white px-3 py-1.5 shadow-sm">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm font-heading tracking-widest text-gray-600">
-                {wallet.address ? `${wallet.address.slice(0, 6)}...` : '0x742...'}
-              </span>
-              <span className="text-sm font-heading tracking-widest text-gray-600 border-l border-gray-300 pl-3">
-                {wallet.balance || '1.25'} ETH
-              </span>
-            </div>
+            {wallet.isConnected && (
+              <div className="flex items-center gap-3 border border-gray-200 rounded-md bg-white px-3 py-1.5 shadow-sm">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-heading tracking-widest text-gray-600">
+                  {wallet.address ? `${wallet.address.slice(0, 6)}...` : '0x742...'}
+                </span>
+                <span className="text-sm font-heading tracking-widest text-gray-600 border-l border-gray-300 pl-3">
+                  {wallet.balance || '1.25'} ETH
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -101,7 +104,16 @@ export default function BuyerDetailPage() {
 
             {/* Buy button */}
             <button
-              onClick={() => setBuyOpen(true)}
+              onClick={async () => {
+                if (!wallet.isConnected) {
+                  const success = await connect(false); // Connect without redirecting
+                  if (success) {
+                    setBuyOpen(true);
+                  }
+                } else {
+                  setBuyOpen(true);
+                }
+              }}
               className="w-full mt-6 bg-green-700 hover:bg-green-800 text-white font-heading font-bold text-sm tracking-widest py-3 rounded-sm transition-colors cursor-pointer"
             >
               MUA TÍN CHỈ

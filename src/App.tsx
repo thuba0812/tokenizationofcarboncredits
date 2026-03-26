@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import Navbar from './components/Navbar'
 import SellPage from './pages/seller/SellPage'
 import CertificatePage from './pages/seller/CertificatePage'
@@ -13,13 +13,10 @@ import ModeratorListPage from './pages/moderator/ModeratorListPage'
 import ModeratorDetailPage from './pages/moderator/ModeratorDetailPage'
 import { useMetaMask } from './hooks/useMetaMask'
 import { WalletProvider } from './contexts/WalletContext'
-import type { UserRole } from './types'
 
 function AppContent({
   wallet,
   handleConnect,
-  role,
-  setRole,
   defaultPath
 }: any) {
   const location = useLocation()
@@ -31,33 +28,39 @@ function AppContent({
     (/^\/marketplace\/[^/]+$/.test(location.pathname)) ||
     (/^\/moderator\/[^/]+$/.test(location.pathname))
 
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!wallet.isConnected && !location.pathname.startsWith('/marketplace') && location.pathname !== '/') {
+      navigate('/marketplace', { replace: true })
+    }
+  }, [wallet.isConnected, navigate, location.pathname])
+
   return (
     <div className="min-h-screen flex flex-col">
       {!isFullscreenPage && (
         <Navbar 
           wallet={wallet} 
           onConnect={handleConnect} 
-          role={role} 
-          onRoleChange={setRole}
         />
       )}
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Navigate to={defaultPath} replace />} />
 
-          {/* Seller */}
+          {/* Seller / Tài sản */}
           <Route path="/seller" element={<SellerHomePage />} />
           <Route path="/seller/:id" element={<SellerDetailPage />} />
           <Route path="/seller/burn/destroy" element={<BurnPage />} />
           <Route path="/seller/sell/create" element={<SellPage />} />
           <Route path="/seller/burn/certificates" element={<CertificatePage />} />
 
-          {/* Buyer */}
+          {/* Buyer / Mua */}
           <Route path="/buyer" element={<BuyerHomePage />} />
           <Route path="/marketplace" element={<MarketplacePage />} />
           <Route path="/marketplace/:id" element={<BuyerDetailPage />} />
 
-          {/* Moderator */}
+          {/* Moderator / Admin */}
           <Route path="/moderator" element={<ModeratorListPage />} />
           <Route path="/moderator/:id" element={<ModeratorDetailPage />} />
 
@@ -70,8 +73,7 @@ function AppContent({
 }
 
 export default function App() {
-  const [role, setRole] = useState<UserRole>('seller')
-  const { wallet, connect, disconnect, error } = useMetaMask()
+  const { wallet, connect, disconnect, error, isInitializing } = useMetaMask()
 
   const handleConnect = () => {
     if (wallet.isConnected) {
@@ -81,16 +83,29 @@ export default function App() {
     }
   }
 
-  const defaultPath = !wallet.isConnected ? '/marketplace' : (role === 'seller' ? '/seller' : role === 'buyer' ? '/buyer' : '/moderator')
+  let defaultPath = '/marketplace'
+  if (wallet.isConnected) {
+    if (wallet.role === 'ENTERPRISE') defaultPath = '/seller'
+    else if (wallet.role === 'REGULATORY_AGENCY') defaultPath = '/moderator'
+  }
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-pulse flex items-center gap-2">
+          <div className="w-3 h-3 bg-green-600 rounded-full" />
+          <span className="font-heading font-semibold tracking-widest text-sm text-gray-500">CONNECTING...</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <BrowserRouter>
-      <WalletProvider wallet={wallet} error={error}>
+      <WalletProvider wallet={wallet} error={error} isInitializing={isInitializing} connect={connect}>
         <AppContent 
           wallet={wallet} 
           handleConnect={handleConnect} 
-          role={role} 
-          setRole={setRole} 
           error={error} 
           defaultPath={defaultPath} 
         />

@@ -1,22 +1,34 @@
 import { Wallet, WifiOff } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
-import type { UserRole, WalletState } from '../types'
+import type { WalletState } from '../types'
 
 interface NavbarProps {
   wallet: WalletState
   onConnect: () => void
-  role: UserRole
-  onRoleChange: (role: UserRole) => void
 }
 
-export default function Navbar({ wallet, onConnect, role, onRoleChange }: NavbarProps) {
+export default function Navbar({ wallet, onConnect }: NavbarProps) {
   const location = useLocation()
+  
+  const role = wallet.role || 'GUEST'
 
-  const navLinks: { label: string; path: string }[] = role === 'seller'
-    ? [{ label: 'Thị trường', path: '/marketplace' }, { label: 'Tài sản', path: '/seller' }]
-    : role === 'buyer'
-    ? [{ label: 'Trang chủ', path: '/buyer' }, { label: 'Thị trường', path: '/marketplace' }]
-    : [{ label: 'Phát hành token', path: '/moderator' }, { label: 'Thị trường', path: '/marketplace' }]
+  let navLinks: { label: string; path: string }[] = []
+  if (role === 'ENTERPRISE') {
+    navLinks = [
+      { label: 'Thị trường', path: '/marketplace' },
+      { label: 'Tài sản', path: '/seller' }
+    ]
+  } else if (role === 'REGULATORY_AGENCY') {
+    navLinks = [
+      { label: 'Phát hành token', path: '/moderator' },
+      { label: 'Thị trường', path: '/marketplace' }
+    ]
+  } else {
+    // GUEST or unconnected
+    navLinks = [
+      { label: 'Thị trường', path: '/marketplace' }
+    ]
+  }
 
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
@@ -48,17 +60,6 @@ export default function Navbar({ wallet, onConnect, role, onRoleChange }: Navbar
 
         {/* Right side */}
         <div className="flex items-center gap-3">
-          {/* Role switcher (demo only) */}
-          <select
-            value={role}
-            onChange={e => onRoleChange(e.target.value as UserRole)}
-            className="text-xs font-medium border border-gray-300 rounded px-2 py-1 text-gray-600 bg-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-green-500"
-          >
-            <option value="seller">Seller</option>
-            <option value="buyer">Buyer</option>
-            <option value="moderator">Kiểm duyệt</option>
-          </select>
-
           {/* Wallet badge */}
           {wallet.isConnected ? (
             <div className="flex items-center gap-2 border border-gray-300 rounded px-3 py-1.5">

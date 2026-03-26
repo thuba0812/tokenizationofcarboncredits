@@ -3,21 +3,26 @@ import { useNavigate } from 'react-router-dom'
 import ProjectCard from '../../components/ProjectCard'
 import SearchBar from '../../components/SearchBar'
 import Footer from '../../components/Footer'
-import { PROJECTS } from '../../database/mockData'
+import { useListings } from '../../hooks/useListings'
 
 export default function MarketplacePage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
 
-  // Only show listed (token-issued with price) projects
-  const listed = PROJECTS.filter(p =>
-    p.status === 'token-issued' &&
-    p.priceMin !== undefined &&
-    (
-      p.code.toLowerCase().includes(search.toLowerCase()) ||
-      p.name.toLowerCase().includes(search.toLowerCase())
+  const { listings, loading } = useListings()
+
+  const listed = listings
+    .filter(item =>
+      item.project.code.toLowerCase().includes(search.toLowerCase()) ||
+      item.project.name.toLowerCase().includes(search.toLowerCase())
     )
-  )
+    .map(item => {
+      // Set the price for UI display directly from the listing
+      item.project.priceMin = item.pricePerToken;
+      return item.project;
+    })
+
+  if (loading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>
 
   return (
     <div className="min-h-screen bg-white flex flex-col">

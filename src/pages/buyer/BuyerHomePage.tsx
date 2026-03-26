@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import SearchBar from '../../components/SearchBar'
 import BurnModal from '../../components/modals/BurnModal'
-import { PURCHASED_CREDITS } from '../../database/mockData'
+import { usePortfolio } from '../../hooks/usePortfolio'
 import type { Project } from '../../types'
 import { Download, Flame } from 'lucide-react'
 
@@ -9,7 +9,12 @@ export default function BuyerHomePage() {
   const [search, setSearch] = useState('')
   const [burnProject, setBurnProject] = useState<Project | null>(null)
 
-  const purchasedProjects = PURCHASED_CREDITS
+  const walletId = 2; // Tạm dùng walletId = 2 cho test Buyer
+  const { credits, loading } = usePortfolio(walletId)
+
+  const purchasedProjects = credits.filter(c => c.project.name.toLowerCase().includes(search.toLowerCase()))
+
+  if (loading) return <div className="p-10 text-center">Đang tải dữ liệu...</div>
 
   return (
     <div className="min-h-screen bg-white">

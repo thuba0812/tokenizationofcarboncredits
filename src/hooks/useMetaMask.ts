@@ -1,14 +1,65 @@
 import { useState, useCallback, useEffect } from 'react'
 import { BrowserProvider } from 'ethers'
-import type { WalletState } from '../types'
+import type { WalletState, UserRole } from '../types'
+import { supabase } from '../database/supabase'
 
 export function useMetaMask() {
   const [wallet, setWallet] = useState<WalletState>({
     address: null,
     balance: '0',
     isConnected: false,
+    role: 'GUEST',
   })
   const [error, setError] = useState<string>('')
+  const [isInitializing, setIsInitializing] = useState(true)
+
+  // Helper to fetch account details and set state
+  const loadAccountData = useCallback(async (address: string, shouldRedirect: boolean = false) => {
+    try {
+      const eth = (window as any).ethereum
+      const provider = new BrowserProvider(eth)
+      const balance = await provider.getBalance(address)
+      const balanceEth = balance.toString()
+
+      let assignedRole: UserRole = 'GUEST'
+      try {
+        const { data } = await supabase
+          .from('WALLETS')
+          .select(`ORGANIZATIONS ( organization_type )`)
+          .ilike('wallet_address', address)
+          .single()
+        
+        const orgData = data?.ORGANIZATIONS as any
+        assignedRole = (Array.isArray(orgData) ? orgData[0]?.organization_type : orgData?.organization_type) || 'GUEST'
+      } catch (dbError) {
+        console.error('Error fetching role from DB:', dbError)
+      }
+
+      setWallet({
+        address,
+        balance: (Number(balanceEth) / 1e18).toFixed(4),
+        isConnected: true,
+        role: assignedRole,
+      })
+
+      if (shouldRedirect) {
+        let defaultPath = '/marketplace'
+        if (assignedRole === 'ENTERPRISE') defaultPath = '/seller'
+        else if (assignedRole === 'REGULATORY_AGENCY') defaultPath = '/moderator'
+        
+        // Prevent redirecting if user is currently viewing a detail page on the marketplace
+        const isMarketplaceDetail = /^\/marketplace\/[^/]+$/.test(window.location.pathname);
+        if (!isMarketplaceDetail && window.location.pathname !== defaultPath) {
+          window.location.href = defaultPath
+        }
+      }
+
+      return true
+    } catch (err) {
+      console.error(err)
+      return false
+    }
+  }, [])
 
   // Check if MetaMask is installed
   const isMetaMaskInstalled = useCallback(() => {
@@ -18,7 +69,7 @@ export function useMetaMask() {
   }, [])
 
   // Connect wallet
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (shouldRedirect = true) => {
     try {
       setError('')
 
@@ -39,14 +90,7 @@ export function useMetaMask() {
       }
 
       const address = accounts[0]
-      const balance = await provider.getBalance(address)
-      const balanceEth = balance.toString()
-
-      setWallet({
-        address,
-        balance: (Number(balanceEth) / 1e18).toFixed(4),
-        isConnected: true,
-      })
+      await loadAccountData(address, shouldRedirect) // Redirect on explicit connect only if requested
 
       return true
     } catch (err: any) {
@@ -84,6 +128,7 @@ export function useMetaMask() {
       address: null,
       balance: '0',
       isConnected: false,
+      role: 'GUEST',
     })
     setError('')
     localStorage.removeItem('walletAddress')
@@ -92,9 +137,27 @@ export function useMetaMask() {
 
   // Listen for account changes
   useEffect(() => {
-    if (!isMetaMaskInstalled()) return
+    if (!isMetaMaskInstalled()) {
+      setIsInitializing(false)
+      return
+    }
 
     const eth = (window as any).ethereum
+
+    // Check if already connected (F5 refresh)
+    const init = async () => {
+      try {
+        const accounts = await eth.request({ method: 'eth_accounts' })
+        if (accounts && accounts.length > 0) {
+          await loadAccountData(accounts[0], false) // Do NOT redirect on F5
+        }
+      } catch (err) {
+        console.error('Auto login failed', err)
+      } finally {
+        setIsInitializing(false)
+      }
+    }
+    init()
 
     const handleAccountsChanged = async (accounts: unknown) => {
       const accountsList = Array.isArray(accounts) ? accounts : []
@@ -102,18 +165,7 @@ export function useMetaMask() {
         disconnect()
       } else {
         const newAddress = String(accountsList[0])
-        try {
-          const provider = new BrowserProvider(eth)
-          const balance = await provider.getBalance(newAddress)
-          const balanceEth = (Number(balance) / 1e18).toFixed(4)
-          setWallet({
-            address: newAddress,
-            balance: balanceEth,
-            isConnected: true,
-          })
-        } catch (err) {
-          setWallet(prev => ({ ...prev, address: newAddress }))
-        }
+        await loadAccountData(newAddress, true) // Redirect when account explicitly changed in metamask
       }
     }
 
@@ -128,7 +180,7 @@ export function useMetaMask() {
       eth.removeListener('accountsChanged', handleAccountsChanged)
       eth.removeListener('chainChanged', handleChainChanged)
     }
-  }, [disconnect, isMetaMaskInstalled])
+  }, [disconnect, isMetaMaskInstalled, loadAccountData])
 
   return {
     wallet,
@@ -136,5 +188,6 @@ export function useMetaMask() {
     disconnect,
     error,
     isMetaMaskInstalled: isMetaMaskInstalled(),
+    isInitializing,
   }
 }
