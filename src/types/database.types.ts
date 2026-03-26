@@ -35,7 +35,10 @@ export interface ProjectVintageDB {
   verified_co2_reduction: number;
   issued_creadit_amount: number;
   status: string;
+  token_id?: number;
+  mint_tx_hash?: string;
   minted_amount?: number;
+  minted_at?: string;
 }
 
 export interface ListingDB {
