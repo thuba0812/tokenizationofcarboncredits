@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Search, AlertTriangle, RotateCcw, Trash2, Check, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Search, AlertTriangle, RotateCcw, Trash2, Check, ShieldCheck, Loader2 } from 'lucide-react'
 import Footer from '../../components/Footer'
 import { useWallet } from '../../contexts/WalletContext'
 import { useProjects } from '../../hooks/useProjects'
+import { useContractTransaction } from '../../hooks/useContractTransaction'
+import * as contractService from '../../services/contractService'
+import { isContractConfigured } from '../../contracts/contractConfig'
 
 export default function BurnPage() {
   const navigate = useNavigate()
@@ -13,6 +16,8 @@ export default function BurnPage() {
   const [showWarning, setShowWarning] = useState(false)
   const [showConfirmBurn, setShowConfirmBurn] = useState(false)
   const [showSuccessBurn, setShowSuccessBurn] = useState(false)
+  const [burnTxHash, setBurnTxHash] = useState<string | null>(null)
+  const txState = useContractTransaction()
 
   const quota = 125000
   const maxBurn = 12500
@@ -167,18 +172,65 @@ export default function BurnPage() {
                   HỦY
                 </button>
                 <button
-                  onClick={() => {
-                    setShowConfirmBurn(false)
-                    setShowSuccessBurn(true)
+                  disabled={txState.isLoading}
+                  onClick={async () => {
+                    // Chuẩn bị dữ liệu burn
+                    const tokenIds: number[] = [];
+                    const amounts: number[] = [];
+
+                    for (const [key, qty] of Object.entries(selectedTokens)) {
+                      if (qty > 0) {
+                        const [projectId, yearStr] = key.split('-');
+                        const proj = filtered.find(p => p.id === projectId);
+                        const token = proj?.tableTokens.find(t => t.year === Number(yearStr));
+                        if (token?.vintageId) {
+                          tokenIds.push(token.vintageId); // tokenId = project_vintage_id
+                          amounts.push(qty);
+                        }
+                      }
+                    }
+
+                    if (isContractConfigured() && tokenIds.length > 0) {
+                      const result = await txState.execute([
+                        {
+                          label: 'Tiêu hủy token trên blockchain',
+                          run: () => contractService.burnCarbonBatch(tokenIds, amounts, maxBurn),
+                        },
+                      ]);
+
+                      if (result.success) {
+                        setBurnTxHash(result.txHash);
+                        setShowConfirmBurn(false);
+                        setShowSuccessBurn(true);
+                      }
+                      // Nếu lỗi, txState.error sẽ hiển thị
+                    } else {
+                      // Chưa config contract → chỉ chuyển modal
+                      setShowConfirmBurn(false);
+                      setShowSuccessBurn(true);
+                    }
                   }}
-                  className="flex-1 py-5 bg-black font-heading font-bold text-base tracking-widest text-white uppercase hover:bg-gray-900 transition-colors cursor-pointer"
+                  className={`flex-1 py-5 font-heading font-bold text-base tracking-widest uppercase transition-colors cursor-pointer ${
+                    txState.isLoading ? 'bg-gray-400 text-white cursor-wait' : 'bg-black text-white hover:bg-gray-900'
+                  }`}
                 >
-                  XÁC NHẬN
+                  {txState.isLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {txState.statusText || 'ĐANG XỬ LÝ...'}
+                    </span>
+                  ) : 'XÁC NHẬN'}
                 </button>
               </div>
 
+              {txState.status === 'error' && (
+                <p className="text-xs text-red-600 mb-2 bg-red-50 px-3 py-2 rounded">
+                  ⚠ {txState.error}
+                </p>
+              )}
+
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                THAO TÁC NÀY SẼ GHI NHẬN TRỰC TIẾP VÀO LEDGER
+                THAO TÁC NÀY SẼ GHI NHẬN TRỰC TIẾP VÀO BLOCKCHAIN
               </p>
             </div>
           </div>
@@ -212,8 +264,8 @@ export default function BurnPage() {
                 </div>
                 <div className="flex justify-between items-end">
                    <div>
-                      <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">MÃ GIAO DỊCH</div>
-                      <div className="font-mono text-xs font-bold text-gray-900">TXN-7729-F9B2-VN</div>
+                      <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">{burnTxHash ? 'TX HASH (BLOCKCHAIN)' : 'MÃ GIAO DỊCH'}</div>
+                      <div className="font-mono text-xs font-bold text-gray-900 break-all">{burnTxHash ? `${burnTxHash.slice(0, 10)}...${burnTxHash.slice(-8)}` : 'LOCAL'}</div>
                    </div>
                    <div className="text-right">
                       <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">THỜI GIAN</div>

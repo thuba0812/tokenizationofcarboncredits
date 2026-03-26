@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Search, RotateCcw, Tag, Check, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Search, RotateCcw, Tag, Check, ShieldCheck, Loader2 } from 'lucide-react'
 import Footer from '../../components/Footer'
 import { useWallet } from '../../contexts/WalletContext'
 import { useProjects } from '../../hooks/useProjects'
+import { useContractTransaction } from '../../hooks/useContractTransaction'
+import * as contractService from '../../services/contractService'
+import { isContractConfigured } from '../../contracts/contractConfig'
 
 export default function SellPage() {
   const navigate = useNavigate()
@@ -14,6 +17,8 @@ export default function SellPage() {
   const [showConfirmSell, setShowConfirmSell] = useState(false)
   const [showSuccessSell, setShowSuccessSell] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [sellTxHash, setSellTxHash] = useState<string | null>(null)
+  const txState = useContractTransaction()
   const { projects, loading } = useProjects()
 
   const filtered = projects.filter(p =>
@@ -139,12 +144,15 @@ export default function SellPage() {
                   HỦY
                 </button>
                 <button
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || txState.isLoading}
                   onClick={async () => {
                     if (!wallet.address) return;
                     setIsSubmitting(true);
                     try {
-                      const itemsToSell = [];
+                      // Chuẩn bị dữ liệu
+                      const itemsToSell: { vintageId: number; quantity: number; price: number }[] = [];
+                      const onChainItems: { tokenId: number; pricePerUnit: number; amount: number }[] = [];
+
                       for (const [key, quantity] of Object.entries(selectedTokens)) {
                         if (quantity > 0) {
                           const [projectId, yearStr] = key.split('-');
@@ -154,19 +162,53 @@ export default function SellPage() {
                           const token = proj?.tableTokens.find(t => t.year === Number(yearStr));
                           
                           if (token?.vintageId) {
-                            itemsToSell.push({
-                              vintageId: token.vintageId,
-                              quantity,
-                              price
-                            });
+                            itemsToSell.push({ vintageId: token.vintageId, quantity, price });
+                            // tokenId on-chain = project_vintage_id
+                            onChainItems.push({ tokenId: token.vintageId, pricePerUnit: price, amount: quantity });
                           }
                         }
                       }
-                      
+
+                      if (onChainItems.length === 0) {
+                        alert('Không có token hợp lệ để bán.');
+                        return;
+                      }
+
+                      // ── Bước 1: Gọi smart contract (nếu đã config) ──
+                      let txHash: string | null = null;
+
+                      if (isContractConfigured()) {
+                        const steps = [];
+
+                        // Kiểm tra approve
+                        const isApproved = await contractService.isMarketplaceApproved();
+                        if (!isApproved) {
+                          steps.push({
+                            label: 'Cấp quyền cho Marketplace',
+                            run: () => contractService.approveMarketplace(),
+                          });
+                        }
+
+                        // Tạo listing on-chain
+                        steps.push({
+                          label: 'Đăng bán token trên blockchain',
+                          run: () => contractService.createListingsBatch(onChainItems),
+                        });
+
+                        const result = await txState.execute(steps);
+                        if (!result.success) {
+                          // User rejected hoặc lỗi contract → dừng
+                          return;
+                        }
+                        txHash = result.txHash;
+                      }
+
+                      // ── Bước 2: Ghi DB (giữ nguyên logic cũ) ──
                       const { listingRepository } = await import('../../repositories/ListingRepository');
                       const success = await listingRepository.createListings(wallet.address, itemsToSell);
                       
                       if (success) {
+                        setSellTxHash(txHash);
                         setShowConfirmSell(false);
                         setShowSuccessSell(true);
                       } else {
@@ -177,18 +219,30 @@ export default function SellPage() {
                       alert('Thao tác không thành công.');
                     } finally {
                       setIsSubmitting(false);
+                      txState.reset();
                     }
                   }}
                   className={`flex-1 py-5 font-heading font-bold text-base tracking-widest uppercase transition-colors cursor-pointer ${
-                    isSubmitting ? 'bg-gray-400 text-white cursor-wait' : 'bg-black text-white hover:bg-gray-900'
+                    isSubmitting || txState.isLoading ? 'bg-gray-400 text-white cursor-wait' : 'bg-black text-white hover:bg-gray-900'
                   }`}
                 >
-                  {isSubmitting ? 'ĐANG XỬ LÝ...' : 'XÁC NHẬN'}
+                  {txState.isLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {txState.statusText || 'ĐANG XỬ LÝ...'}
+                    </span>
+                  ) : isSubmitting ? 'ĐANG LƯU DỮ LIỆU...' : 'XÁC NHẬN'}
                 </button>
               </div>
 
+              {txState.status === 'error' && (
+                <p className="text-xs text-red-600 mb-2 bg-red-50 px-3 py-2 rounded">
+                  ⚠ {txState.error}
+                </p>
+              )}
+
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                THAO TÁC NÀY SẼ GHI NHẬN TRỰC TIẾP VÀO LEDGER
+                THAO TÁC NÀY SẼ GHI NHẬN TRỰC TIẾP VÀO BLOCKCHAIN & DATABASE
               </p>
             </div>
           </div>
@@ -222,8 +276,8 @@ export default function SellPage() {
                 </div>
                 <div className="flex justify-between items-end">
                    <div>
-                      <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">MÃ GIAO DỊCH</div>
-                      <div className="font-mono text-xs font-bold text-gray-900">TXN-9941-A2X8-VN</div>
+                      <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">{sellTxHash ? 'TX HASH (BLOCKCHAIN)' : 'MÃ GIAO DỊCH'}</div>
+                      <div className="font-mono text-xs font-bold text-gray-900 break-all">{sellTxHash ? `${sellTxHash.slice(0, 10)}...${sellTxHash.slice(-8)}` : 'DB-ONLY'}</div>
                    </div>
                    <div className="text-right">
                       <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">THỜI GIAN</div>
