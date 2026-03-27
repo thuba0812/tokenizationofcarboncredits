@@ -22,6 +22,9 @@ export interface TokenYear {
   listedAmount?: number
   soldAmount?: number
   price?: number | null // USDT per token
+  currentListingId?: number | null
+  onchainListingId?: number | null
+  listingTxHash?: string | null
   status?: string
   tokenId?: number | null
   mintTxHash?: string | null
