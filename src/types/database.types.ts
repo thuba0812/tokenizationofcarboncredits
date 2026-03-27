@@ -68,7 +68,6 @@ export interface ListingDB {
   seller_wallet_id: number;
   price_per_unit: number;
   listed_amount: number;
-  available_amount: number;
   listing_status: string;
 }
 
