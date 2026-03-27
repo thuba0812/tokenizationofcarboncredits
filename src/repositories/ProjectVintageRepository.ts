@@ -47,7 +47,7 @@ export class ProjectVintageRepository extends BaseRepository<ProjectVintageDB> {
           )
         )
       `)
-      .order('created_at', { ascending: false });
+      .order('vintage_year', { ascending: false });
 
     if (error) {
       console.error('Error fetching project vintages:', error);
