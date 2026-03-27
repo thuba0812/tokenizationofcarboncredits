@@ -6,11 +6,13 @@ import { useWallet } from '../../contexts/WalletContext'
 import { useCertificates } from '../../hooks/usePortfolio'
 import { useWalletIdentity } from '../../hooks/useWalletIdentity'
 import type { Certificate } from '../../types'
+import CertificateModal from '../../components/CertificateModal'
 
 export default function CertificatePage() {
   const navigate = useNavigate()
   const { wallet } = useWallet()
   const [search, setSearch] = useState('')
+  const [selectedCert, setSelectedCert] = useState<Certificate | null>(null)
   const { organizationId, loading: identityLoading } = useWalletIdentity(wallet.address)
   const { certificates, loading } = useCertificates(organizationId ?? 0)
 
@@ -109,14 +111,14 @@ export default function CertificatePage() {
 
                   <div className="p-6">
                     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-                      {group.certs.map((cert) => (
+                      {group.certs.map((cert, index) => (
                         <div
-                          key={cert.id}
+                          key={`${cert.id}-${index}`}
                           className="grid grid-cols-12 items-center gap-4 border-b border-gray-100 px-8 py-8 last:border-b-0"
                         >
                           <div className="col-span-4 flex items-center">
                             <span className="font-heading text-sm font-bold uppercase text-gray-900">
-                              MÃ TIÊU HỦY
+                              MÃ TIÊU HỦY: {cert.id}
                             </span>
                           </div>
                           <div className="col-span-3 flex justify-center pr-4">
@@ -128,7 +130,10 @@ export default function CertificatePage() {
                             </span>
                           </div>
                           <div className="col-span-3 flex justify-end pr-2">
-                            <button className="cursor-pointer rounded-sm bg-[#1b5e20] px-6 py-3 font-heading text-[10px] font-bold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-[#144f19]">
+                            <button
+                              onClick={() => setSelectedCert(cert)}
+                              className="cursor-pointer rounded-sm bg-[#1b5e20] px-6 py-3 font-heading text-[10px] font-bold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-[#144f19]"
+                            >
                               XEM CHỨNG CHỈ
                             </button>
                           </div>
@@ -152,6 +157,13 @@ export default function CertificatePage() {
       </div>
 
       <Footer />
+
+      {selectedCert && (
+        <CertificateModal
+          certificate={selectedCert}
+          onClose={() => setSelectedCert(null)}
+        />
+      )}
     </div>
   )
 }

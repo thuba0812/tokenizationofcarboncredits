@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, AlertTriangle, RotateCcw, Trash2, Check, ShieldCheck, Loader2 } from 'lucide-react'
 import Footer from '../../components/Footer'
 import { useWallet } from '../../contexts/WalletContext'
-import { useProjects } from '../../hooks/useProjects'
+import { usePortfolio } from '../../hooks/usePortfolio'
+import { useWalletIdentity } from '../../hooks/useWalletIdentity'
 import { useContractTransaction } from '../../hooks/useContractTransaction'
 import * as contractService from '../../services/contractService'
 import { isContractConfigured } from '../../contracts/contractConfig'
+import { portfolioRepository } from '../../repositories/PortfolioRepository'
+import IPFSAutoUploader from '../../components/IPFSAutoUploader'
 
 export default function BurnPage() {
   const navigate = useNavigate()
@@ -17,14 +20,35 @@ export default function BurnPage() {
   const [showConfirmBurn, setShowConfirmBurn] = useState(false)
   const [showSuccessBurn, setShowSuccessBurn] = useState(false)
   const [burnTxHash, setBurnTxHash] = useState<string | null>(null)
+  const [lastRetirementId, setLastRetirementId] = useState<number | null>(null)
+  const [lastBurntItems, setLastBurntItems] = useState<{ project: any, qty: number, creditCode: string }[]>([])
   const txState = useContractTransaction()
 
   const quota = 125000
   const maxBurn = 12500
 
-  const { projects, loading } = useProjects()
+  const { walletId, loading: identityLoading } = useWalletIdentity(wallet.address)
+  const { credits, loading: portfolioLoading } = usePortfolio(walletId ?? 0)
 
-  const filtered = projects.filter(p =>
+  const userProjects = credits.reduce<typeof credits[number]['project'][]>((acc, item) => {
+    const existing = acc.find((project) => project.id === item.project.id)
+    if (!existing) {
+      acc.push({
+        ...item.project,
+        tokens: [...(item.project.tokens || [])],
+      })
+      return acc
+    }
+
+    existing.tokenCount += item.project.tokenCount
+    existing.co2Reduction += item.project.co2Reduction
+    existing.tokens = [...(existing.tokens || []), ...(item.project.tokens || [])]
+    return acc
+  }, [])
+
+  const loading = identityLoading || portfolioLoading
+
+  const filtered = userProjects.filter(p =>
     p.code.toLowerCase().includes(search.toLowerCase()) ||
     p.name.toLowerCase().includes(search.toLowerCase())
   ).map(p => ({
@@ -191,15 +215,54 @@ export default function BurnPage() {
                     }
 
                     if (isContractConfigured() && tokenIds.length > 0) {
+                      const itemsObj: { vintageId: number; quantity: number }[] = [];
+                      for (const [key, qty] of Object.entries(selectedTokens)) {
+                        if (qty > 0) {
+                          const [projectId, yearStr] = key.split('-');
+                          const proj = filtered.find(p => p.id === projectId);
+                          const token = proj?.tableTokens.find(t => t.year === Number(yearStr));
+                          if (token?.vintageId) {
+                            itemsObj.push({ vintageId: token.vintageId, quantity: qty });
+                          }
+                        }
+                      }
+
+                      let localTxHash = "0x00";
+                      let retirementId: number | null = null;
                       const result = await txState.execute([
                         {
                           label: 'Tiêu hủy token trên blockchain',
-                          run: () => contractService.burnCarbonBatch(tokenIds, amounts, maxBurn),
+                          run: async () => {
+                            const hash = await contractService.burnCarbonBatch(tokenIds, amounts, maxBurn);
+                            localTxHash = hash;
+                            return hash;
+                          }
                         },
+                        {
+                          label: 'Cập nhật sổ cái hệ thống',
+                          run: async () => {
+                            const id = await portfolioRepository.retireTokens(wallet.address || "", itemsObj, localTxHash);
+                            retirementId = id;
+                          }
+                        }
                       ]);
 
                       if (result.success) {
                         setBurnTxHash(result.txHash);
+                        
+                        // Collect details for IPFS upload
+                        const burntDetails = itemsObj.map(item => {
+                          const proj = filtered.find(p => p.tableTokens.some(t => t.vintageId === item.vintageId));
+                          const token = proj?.tableTokens.find(t => t.vintageId === item.vintageId);
+                          return {
+                            project: proj,
+                            qty: item.quantity,
+                            creditCode: token?.tokenCode || 'UNKNOWN'
+                          };
+                        });
+                        setLastBurntItems(burntDetails);
+                        setLastRetirementId(retirementId);
+
                         setShowConfirmBurn(false);
                         setShowSuccessBurn(true);
                       }
@@ -251,9 +314,27 @@ export default function BurnPage() {
               <h2 className="font-heading font-bold text-3xl tracking-tight text-gray-900 mb-2 uppercase">TIÊU HỦY THÀNH CÔNG</h2>
               <div className="w-32 h-1 bg-green-700 mb-10"></div>
 
-              <p className="font-heading font-bold text-xl text-gray-900 uppercase tracking-tight mb-12 max-w-xs leading-tight">
+              <p className="font-heading font-bold text-xl text-gray-900 uppercase tracking-tight mb-8 max-w-xs leading-tight">
                 BẠN ĐÃ TIÊU HỦY THÀNH CÔNG {totalSelected.toLocaleString()} TOKEN.
               </p>
+
+              {/* IPFS Auto Uploaders */}
+              {lastRetirementId && lastBurntItems.length > 0 && (
+                <div className="w-full max-w-md mb-10 space-y-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-left mb-2">TỈNH TRẠNG LƯU TRỮ IPFS</p>
+                  {lastBurntItems.map((item, idx) => (
+                    <IPFSAutoUploader
+                      key={idx}
+                      retirementId={lastRetirementId}
+                      projectName={item.project?.name || 'Loading...'}
+                      projectCode={item.project?.code || 'Loading...'}
+                      creditCode={item.creditCode}
+                      quantity={item.qty}
+                      date={new Date().toLocaleDateString('vi-VN')}
+                    />
+                  ))}
+                </div>
+              )}
 
               <div className="w-full bg-gray-50/50 border-l-4 border-green-700 p-6 mb-12 text-left relative overflow-hidden">
                 <div className="flex items-start gap-4 mb-6">
@@ -280,7 +361,7 @@ export default function BurnPage() {
                 onClick={() => {
                   setShowSuccessBurn(false)
                   setSelectedTokens({})
-                  navigate('/seller')
+                  navigate('/seller/burn/certificates')
                 }}
                 className="w-full py-5 bg-black font-heading font-bold text-base tracking-widest text-white uppercase hover:bg-gray-900 transition-colors cursor-pointer"
               >
@@ -447,9 +528,15 @@ export default function BurnPage() {
                               >
                                 −
                               </button>
-                              <div className="w-1/3 text-center text-sm font-bold text-green-700">
-                                {selectedQty}
-                              </div>
+                              <input
+                                type="number"
+                                value={selectedQty || ''}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || 0;
+                                  handleQuantityChange(project.id, token.year, val, maxQty);
+                                }}
+                                className="w-1/3 text-center text-sm font-bold text-green-700 bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
                               <button
                                 onClick={() => handleQuantityChange(project.id, token.year, selectedQty + 1, maxQty)}
                                 className="px-3 py-1.5 text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer font-bold border-l border-gray-200 w-1/3"

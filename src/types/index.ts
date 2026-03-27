@@ -61,7 +61,7 @@ export interface WalletState {
 }
 
 // ─── Transaction ────────────────────────────────────────────────────────────
-export type TransactionType = 'mint' | 'request' | 'sell'
+export type TransactionType = 'mint' | 'request' | 'sell' | 'retire'
 export interface Transaction {
   id: string
   date: string
@@ -87,4 +87,5 @@ export interface Certificate {
   projectCode: string
   date: string      // Format: DD/MM/YYYY
   quantity: number
+  retirementId?: number
 }

@@ -144,6 +144,7 @@ export class ListingRepository extends BaseRepository<ListingDB> {
         .from('LISTINGS')
         .update({
           listing_status: 'INACTIVE',
+          listed_amount: 0,
         })
         .eq('seller_wallet_id', sellerWalletId)
         .eq('listing_status', 'ACTIVE')

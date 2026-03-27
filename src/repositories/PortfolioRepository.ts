@@ -113,16 +113,17 @@ export class PortfolioRepository extends BaseRepository<any> {
     }
 
     return (data as any[]).map((row) => {
-      let type: 'mint' | 'sell' | 'request' = 'request'
+      let type: 'mint' | 'sell' | 'request' | 'retire' = 'request'
       if (row.activity_type === 'MINT') type = 'mint'
       else if (row.activity_type === 'PURCHASE') type = 'sell'
+      else if (row.activity_type === 'RETIRE' || row.activity_type === 'BURN') type = 'retire'
 
       const projectCode = row.PROJECT_VINTAGES?.PROJECTS?.project_code || 'UNKNOWN'
 
       return {
         id: row.activity_id.toString(),
         date: new Date(row.created_at).toLocaleDateString('vi-VN'),
-        txHash: '0x' + Math.random().toString(16).substr(2, 8),
+        txHash: row.reference_type === 'RETIREMENT' ? '0x...' : ('0x' + Math.random().toString(16).substr(2, 8)),
         activity: `${row.activity_type} (${projectCode})`,
         projectCode,
         amount: row.delta_amount,
@@ -139,6 +140,7 @@ export class PortfolioRepository extends BaseRepository<any> {
         RETIREMENT_DETAILS (
           *,
           PROJECT_VINTAGES (
+            credit_code,
             PROJECTS ( project_id, project_code, project_name )
           )
         )
@@ -155,20 +157,101 @@ export class PortfolioRepository extends BaseRepository<any> {
     for (const cert of data as any[]) {
       for (const det of cert.RETIREMENT_DETAILS || []) {
         const project = det.PROJECT_VINTAGES?.PROJECTS
+        const creditCode = det.PROJECT_VINTAGES?.credit_code || 'UNKNOWN'
         if (!project) continue
 
         certs.push({
-          id: `CERT-${cert.retirement_id}`,
+          id: `RTM-${creditCode}`,
           projectId: project.project_id.toString(),
           projectName: project.project_name,
           projectCode: project.project_code,
           date: new Date(cert.retired_at || cert.created_at).toLocaleDateString('vi-VN'),
           quantity: det.retired_amount,
+          retirementId: cert.retirement_id,
         })
       }
     }
 
     return certs
+  }
+
+  async retireTokens(walletAddress: string, items: { vintageId: number; quantity: number }[], txHash: string): Promise<number | null> {
+    const { data: walletData, error: walletError } = await this.client
+      .from('WALLETS')
+      .select('wallet_id, organization_id')
+      .ilike('wallet_address', walletAddress)
+      .single()
+
+    if (walletError || !walletData) return null
+
+    const walletId = Number(walletData.wallet_id)
+    const orgId = Number(walletData.organization_id)
+
+    const vintageIds = items.map((item) => item.vintageId)
+    const { data: balances } = await this.client
+      .from('TOKEN_BALANCES')
+      .select('balance_id, project_vintage_id, current_amount')
+      .eq('wallet_id', walletId)
+      .in('project_vintage_id', vintageIds)
+
+    const balanceByVintageId = new Map<number, any>()
+    for (const balance of (balances as any[]) || []) {
+      balanceByVintageId.set(Number(balance.project_vintage_id), balance)
+    }
+
+    const { data: quotaData } = await this.client
+      .from('CARBON_QUOTAS')
+      .select('quota_id')
+      .eq('organization_id', orgId)
+      .limit(1)
+    const quotaId = quotaData && quotaData.length > 0 ? quotaData[0].quota_id : null
+
+    const { data: retirement, error: retError } = await this.client
+      .from('RETIREMENTS')
+      .insert({
+        organization_id: orgId,
+        wallet_id: walletId,
+        quota_id: quotaId,
+        retirement_status: 'COMPLETED',
+        retired_at: new Date().toISOString(),
+        retirement_tx_hash: txHash,
+      })
+      .select('retirement_id')
+      .single()
+
+    if (retError || !retirement) {
+      console.error('Error inserting retirement:', retError)
+      return null
+    }
+
+    const retirementId = retirement.retirement_id
+
+    for (const item of items) {
+      const qtyVal = Number(item.quantity)
+
+      const { error: detailError } = await this.client.from('RETIREMENT_DETAILS').insert({
+        retirement_id: retirementId,
+        project_vintage_id: item.vintageId,
+        retired_amount: qtyVal,
+      })
+
+      if (detailError) console.error('Error inserting retirement detail:', detailError)
+
+      // The TOKEN_ACTIVITY_LOGS insert will trigger the balance update in the DB.
+      // We do NOT update TOKEN_BALANCES manually here to avoid double-subtraction.
+      const { error: logError } = await this.client.from('TOKEN_ACTIVITY_LOGS').insert({
+        wallet_id: walletId,
+        project_vintage_id: item.vintageId,
+        activity_type: 'RETIRE',
+        delta_amount: -qtyVal,
+        reference_id: retirementId,
+        reference_type: 'RETIREMENT',
+      })
+
+      if (logError) console.error('Error inserting activity log:', logError)
+    }
+
+    return retirementId
   }
 }
 
