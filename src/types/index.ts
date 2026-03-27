@@ -20,6 +20,7 @@ export interface TokenYear {
   quantity: number
   available: number
   listedAmount?: number
+  soldAmount?: number
   price?: number | null // USDT per token
   status?: string
   tokenId?: number | null
