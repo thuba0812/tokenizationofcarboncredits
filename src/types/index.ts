@@ -19,7 +19,14 @@ export interface TokenYear {
   tokenCode: string
   quantity: number
   available: number
-  price?: number // USDT per token
+  listedAmount?: number
+  soldAmount?: number
+  price?: number | null // USDT per token
+  status?: string
+  tokenId?: number | null
+  mintTxHash?: string | null
+  mintedAmount?: number | null
+  mintedAt?: string | null
 }
 
 // ─── CDM Project ────────────────────────────────────────────────────────────
