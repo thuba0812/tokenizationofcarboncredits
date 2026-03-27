@@ -6,14 +6,17 @@ import { useContractTransaction } from '../../hooks/useContractTransaction'
 import * as contractService from '../../services/contractService'
 import { isContractConfigured } from '../../contracts/contractConfig'
 import { useWallet } from '../../contexts/WalletContext'
+import type { MarketplaceItem } from '../../repositories/ListingRepository'
+import { purchaseRepository } from '../../repositories/PurchaseRepository'
 
 interface BuyModalProps {
   isOpen: boolean
   onClose: () => void
   project: Project | null
+  listings: MarketplaceItem[]
 }
 
-export default function BuyModal({ isOpen, onClose, project }: BuyModalProps) {
+export default function BuyModal({ isOpen, onClose, project, listings }: BuyModalProps) {
   const [quantities, setQuantities] = useState<Record<number, number>>({})
   const [usdtBalance, setUsdtBalance] = useState<string | null>(null)
   const txState = useContractTransaction()
@@ -30,16 +33,17 @@ export default function BuyModal({ isOpen, onClose, project }: BuyModalProps) {
 
   if (!project) return null
 
-  const tokens = project.tokens ?? []
+  // Sử dụng danh sách listing thực tế truyền từ page cha
+  const tokenListings = listings || []
 
-  const handleQtyChange = (year: number, val: string) => {
+  const handleQtyChange = (listingId: number, val: string) => {
     const num = Math.max(0, parseInt(val) || 0)
-    setQuantities(prev => ({ ...prev, [year]: num }))
+    setQuantities(prev => ({ ...prev, [listingId]: num }))
   }
 
-  const subtotal = tokens.reduce((sum, t) => {
-    const qty = quantities[t.year] ?? 0
-    return sum + qty * (t.price ?? 0)
+  const subtotal = tokenListings.reduce((sum, t) => {
+    const qty = quantities[t.listingId] ?? 0
+    return sum + qty * (t.pricePerToken ?? 0)
   }, 0)
 
   const networkFee = 0.005
@@ -69,18 +73,18 @@ export default function BuyModal({ isOpen, onClose, project }: BuyModalProps) {
             </tr>
           </thead>
           <tbody>
-            {tokens.map(t => (
-              <tr key={t.year} className="border-b border-gray-50 last:border-0">
-                <td className="px-4 py-3 font-bold text-gray-900">{t.year}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{t.available} tCO2e</td>
-                <td className="px-4 py-3 font-bold text-gray-900">{t.price?.toFixed(2) ?? '—'}</td>
+            {tokenListings.map(t => (
+              <tr key={t.listingId} className="border-b border-gray-50 last:border-0">
+                <td className="px-4 py-3 font-bold text-gray-900">{t.vintageYear}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">{t.available} token</td>
+                <td className="px-4 py-3 font-bold text-gray-900">{t.pricePerToken?.toFixed(2) ?? '—'}</td>
                 <td className="px-4 py-3 text-right">
                   <input
                     type="number"
                     min={0}
                     max={t.available}
-                    value={quantities[t.year] ?? 0}
-                    onChange={e => handleQtyChange(t.year, e.target.value)}
+                    value={quantities[t.listingId] ?? 0}
+                    onChange={e => handleQtyChange(t.listingId, e.target.value)}
                     className="w-20 border border-gray-200 rounded bg-green-50 text-center text-sm font-medium text-gray-900 py-1 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
                   />
                 </td>
@@ -145,35 +149,56 @@ export default function BuyModal({ isOpen, onClose, project }: BuyModalProps) {
             if (subtotal === 0) return;
 
             if (isContractConfigured()) {
-              // TODO: Cần mapping listing IDs từ DB cho buyByProject
-              // Hiện tại flow demo: approve USDT rồi thông báo
+              const buyItems = tokenListings
+                .filter(t => (quantities[t.listingId] || 0) > 0)
+                .map(t => ({
+                  listingId: t.listingId,
+                  amount: quantities[t.listingId],
+                  price: t.pricePerToken,
+                  vintageId: t.vintageId
+                }));
+
+              if (buyItems.length === 0) return;
+
               const steps = [
                 {
                   label: 'Chấp thuận USDT',
                   run: () => contractService.approveUSDT(subtotal),
                 },
+                {
+                  label: 'Mua Carbon Credit',
+                  run: () => contractService.buyByProject(
+                    project.code,
+                    buyItems.map(i => i.listingId),
+                    buyItems.map(i => i.amount)
+                  )
+                }
               ];
-
-              // Nếu có project code và listing IDs, thêm bước mua
-              // steps.push({ label: 'Mua token', run: () => contractService.buyByProject(...) });
 
               const result = await txState.execute(steps);
               if (result.success) {
+                // Record to DB
+                await purchaseRepository.recordPurchase(
+                  wallet.address || '',
+                  project.code,
+                  buyItems,
+                  result.txHash || ''
+                );
+
                 setBuySuccess(true);
                 setBuyTxHash(result.txHash);
                 // Refresh balance
-                contractService.getUSDTBalance().then(setUsdtBalance).catch(() => {});
+                contractService.getUSDTBalance().then(setUsdtBalance).catch(() => { });
               }
             } else {
               // Chưa config contract → chỉ alert
               alert('Smart contract chưa được cấu hình. Vui lòng cập nhật địa chỉ contract.');
             }
           }}
-          className={`w-full font-heading font-bold tracking-widest py-3 flex items-center justify-center gap-2 rounded-sm transition-colors duration-150 ${
-            subtotal > 0 && !txState.isLoading
-              ? 'bg-green-700 hover:bg-green-800 text-white cursor-pointer'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          }`}
+          className={`w-full font-heading font-bold tracking-widest py-3 flex items-center justify-center gap-2 rounded-sm transition-colors duration-150 ${subtotal > 0 && !txState.isLoading
+            ? 'bg-green-700 hover:bg-green-800 text-white cursor-pointer'
+            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
         >
           {txState.isLoading ? (
             <>
