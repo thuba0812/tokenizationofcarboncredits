@@ -37,7 +37,7 @@ export class ListingRepository extends BaseRepository<ListingDB> {
         )
       `)
       .eq('listing_status', 'ACTIVE')
-      .gt('available_amount', 0)
+      .gt('listed_amount', 0)
 
     if (error) {
       console.error('Error fetching listings', error)
@@ -57,7 +57,7 @@ export class ListingRepository extends BaseRepository<ListingDB> {
       items.push({
         project,
         quantity: Number(listing.listed_amount),
-        available: Number(listing.available_amount),
+        available: Number(listing.listed_amount),
         pricePerToken: Number(listing.price_per_unit),
         listingId: Number(listing.listing_id),
       })
@@ -83,7 +83,7 @@ export class ListingRepository extends BaseRepository<ListingDB> {
 
     const { data: existingListings, error: existingListingsError } = await this.client
       .from('LISTINGS')
-      .select('listing_id, project_vintage_id, available_amount, listed_amount')
+      .select('listing_id, project_vintage_id, listed_amount')
       .eq('seller_wallet_id', sellerWalletId)
       .eq('listing_status', 'ACTIVE')
       .in('project_vintage_id', vintageIds)
@@ -96,7 +96,7 @@ export class ListingRepository extends BaseRepository<ListingDB> {
     const restoredAmounts = new Map<number, number>()
     for (const listing of (existingListings as any[]) || []) {
       const vintageId = Number(listing.project_vintage_id)
-      const amount = Number(listing.available_amount || listing.listed_amount || 0)
+      const amount = Number(listing.listed_amount || 0)
       restoredAmounts.set(vintageId, (restoredAmounts.get(vintageId) || 0) + amount)
     }
 
@@ -133,7 +133,7 @@ export class ListingRepository extends BaseRepository<ListingDB> {
         .from('LISTINGS')
         .update({
           listing_status: 'INACTIVE',
-          available_amount: 0,
+          listed_amount: 0,
         })
         .eq('seller_wallet_id', sellerWalletId)
         .eq('listing_status', 'ACTIVE')
@@ -168,7 +168,6 @@ export class ListingRepository extends BaseRepository<ListingDB> {
       seller_wallet_id: sellerWalletId,
       price_per_unit: item.price,
       listed_amount: item.quantity,
-      available_amount: item.quantity,
       listing_status: 'ACTIVE',
     }))
 

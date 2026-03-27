@@ -14,6 +14,42 @@ export function useMetaMask() {
   const [error, setError] = useState<string>('')
   const [isInitializing, setIsInitializing] = useState(true)
 
+  const switchNetwork = useCallback(async () => {
+    const eth = (window as any).ethereum
+    if (!eth) return false
+    
+    const hexChainId = `0x${CHAIN_ID.toString(16)}`
+    try {
+      await eth.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: hexChainId }],
+      })
+      return true
+    } catch (error: any) {
+      if (error.code === 4902) {
+        try {
+          await eth.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: hexChainId,
+                chainName: NETWORK_NAME,
+                rpcUrls: ['http://127.0.0.1:8545/'],
+                nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+              },
+            ],
+          })
+          return true
+        } catch (addError) {
+          console.error('Failed to add network', addError)
+          return false
+        }
+      }
+      console.error('Failed to switch network', error)
+      return false
+    }
+  }, [])
+
   const getNetworkError = useCallback(async (provider: BrowserProvider) => {
     const network = await provider.getNetwork()
     const chainId = Number(network.chainId)
@@ -94,11 +130,22 @@ export function useMetaMask() {
       }
 
       const eth = (window as any).ethereum
-      const provider = new BrowserProvider(eth)
-      const networkError = await getNetworkError(provider)
+      let provider = new BrowserProvider(eth)
+      let networkError = await getNetworkError(provider)
+
       if (networkError) {
-        setError(networkError)
-        return false
+        const switched = await switchNetwork()
+        if (!switched) {
+          setError(networkError)
+          return false
+        }
+        // Re-initialize provider after network switch
+        provider = new BrowserProvider(eth)
+        networkError = await getNetworkError(provider)
+        if (networkError) {
+          setError(networkError)
+          return false
+        }
       }
       
       // Request new account selection every time (won't cache)
@@ -123,7 +170,7 @@ export function useMetaMask() {
       }
       return false
     }
-  }, [getNetworkError, isMetaMaskInstalled, loadAccountData])
+  }, [getNetworkError, isMetaMaskInstalled, loadAccountData, switchNetwork])
 
   // Disconnect wallet
   const disconnect = useCallback(async () => {
