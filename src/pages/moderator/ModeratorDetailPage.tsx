@@ -117,7 +117,18 @@ export default function ModeratorDetailPage() {
             <hr className="my-5 border-gray-100" />
             <div>
               <div className="font-heading text-xs font-bold tracking-widest text-gray-400 mb-1">METADATA CID</div>
-              <div className="text-sm text-green-700 italic break-all">{projectVintage.metadataCid || '-'}</div>
+              <div className="text-sm text-green-700 italic break-all underline">
+                {projectVintage.metadataCid ? (
+                  <a 
+                    href={`https://gateway.pinata.cloud/ipfs/${projectVintage.metadataCid}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:text-green-900 cursor-pointer"
+                  >
+                    {projectVintage.metadataCid}
+                  </a>
+                ) : '-'}
+              </div>
             </div>
           </div>
 

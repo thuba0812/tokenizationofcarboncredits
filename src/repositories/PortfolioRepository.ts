@@ -50,11 +50,13 @@ export class PortfolioRepository extends BaseRepository<any> {
         (listing: any) => listing.listing_status === 'ACTIVE'
       )
       const listedAmount = activeListings.reduce(
-        (sum: number, listing: any) => sum + Number(listing.available_amount || listing.listed_amount || 0),
+        (sum: number, listing: any) => sum + Number(listing.listed_amount || 0),
         0
       )
       const activePrice = activeListings.length > 0 ? Number(activeListings[0].price_per_unit) : null
       const quantity = Number(row.current_amount || 0)
+      const mintedAmount = Number(vintage.minted_amount || 0)
+      const soldAmount = Math.max(0, mintedAmount - quantity - listedAmount)
 
       const token: TokenYear = {
         vintageId: vintage.project_vintage_id,
@@ -63,6 +65,7 @@ export class PortfolioRepository extends BaseRepository<any> {
         quantity,
         available: quantity,
         listedAmount,
+        soldAmount,
         price: activePrice,
         status: vintage.status,
         tokenId: vintage.status === 'MINTED' ? (vintage.token_id ?? null) : null,

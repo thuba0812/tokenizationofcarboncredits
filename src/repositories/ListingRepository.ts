@@ -5,10 +5,15 @@ import { projectRepository } from './ProjectRepository'
 
 export interface MarketplaceItem {
   project: Project
+  tokenId: number
+  vintageYear: number
+  creditCode: string
   quantity: number
   available: number
   pricePerToken: number
   listingId: number
+  vintageId: number
+  sellerWalletAddress: string
 }
 
 export class ListingRepository extends BaseRepository<ListingDB> {
@@ -21,6 +26,7 @@ export class ListingRepository extends BaseRepository<ListingDB> {
       .from('LISTINGS')
       .select(`
         *,
+        WALLETS ( wallet_address ),
         PROJECT_VINTAGES (
           *,
           PROJECTS (
@@ -56,10 +62,15 @@ export class ListingRepository extends BaseRepository<ListingDB> {
       const project = projectRepository.mapToDTO(projectData)
       items.push({
         project,
+        tokenId: Number(vintage.token_id),
+        vintageYear: Number(vintage.vintage_year),
+        creditCode: vintage.credit_code,
         quantity: Number(listing.listed_amount),
         available: Number(listing.listed_amount),
         pricePerToken: Number(listing.price_per_unit),
         listingId: Number(listing.listing_id),
+        vintageId: Number(vintage.project_vintage_id),
+        sellerWalletAddress: listing.WALLETS?.wallet_address || '',
       })
     }
 
@@ -133,7 +144,6 @@ export class ListingRepository extends BaseRepository<ListingDB> {
         .from('LISTINGS')
         .update({
           listing_status: 'INACTIVE',
-          listed_amount: 0,
         })
         .eq('seller_wallet_id', sellerWalletId)
         .eq('listing_status', 'ACTIVE')

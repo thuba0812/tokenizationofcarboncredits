@@ -184,7 +184,6 @@ CREATE TABLE public."LISTINGS" (
   seller_wallet_id     BIGINT         NOT NULL,
   price_per_unit       NUMERIC(20,6)  NOT NULL,
   listed_amount        NUMERIC(20,4)  NOT NULL,
-  available_amount     NUMERIC(20,4)  NOT NULL,
   listing_status       VARCHAR(20)    NOT NULL DEFAULT 'ACTIVE',
   listing_tx_hash      VARCHAR(255),
   created_at           TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
@@ -209,9 +208,6 @@ CREATE TABLE public."LISTINGS" (
 
   CONSTRAINT chk_listings_listed_amount
     CHECK (listed_amount > 0),
-
-  CONSTRAINT chk_listings_available_amount
-    CHECK (available_amount >= 0 AND available_amount <= listed_amount),
 
   CONSTRAINT chk_listings_listing_status
     CHECK (listing_status IN ('ACTIVE', 'SOLD_OUT', 'CANCELLED', 'INACTIVE'))
