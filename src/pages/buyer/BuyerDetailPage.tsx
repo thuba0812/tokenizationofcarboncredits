@@ -188,7 +188,12 @@ export default function BuyerDetailPage() {
       </div>
 
       <Footer />
-      <BuyModal isOpen={buyOpen} onClose={() => setBuyOpen(false)} project={project} />
+      <BuyModal 
+        isOpen={buyOpen} 
+        onClose={() => setBuyOpen(false)} 
+        project={project} 
+        listings={projectListings}
+      />
     </div>
   )
 }
