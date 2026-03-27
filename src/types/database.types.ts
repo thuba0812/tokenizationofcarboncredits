@@ -35,7 +35,31 @@ export interface ProjectVintageDB {
   verified_co2_reduction: number;
   issued_creadit_amount: number;
   status: string;
+  token_id?: number;
+  mint_tx_hash?: string;
   minted_amount?: number;
+  minted_at?: string;
+}
+
+export interface WalletDB {
+  wallet_id: number;
+  organization_id: number;
+  wallet_address: string;
+  blockchain_network?: string;
+  public_key?: string;
+  wallet_status: string;
+}
+
+export interface IPFSFileDB {
+  ipfs_file_id: number;
+  object_type: 'PROJECT' | 'PROJECT_VINTAGE' | 'RETIREMENT';
+  object_id: number;
+  file_type: 'PROJECT_DOCUMENT' | 'MRV_REPORT' | 'TOKEN_METADATA' | 'RETIREMENT_CERTIFICATE';
+  cid: string;
+  file_name: string;
+  mime_type?: string;
+  file_size?: number;
+  is_public: boolean;
 }
 
 export interface ListingDB {

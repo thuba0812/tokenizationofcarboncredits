@@ -140,7 +140,7 @@ CREATE TABLE public."PROJECT_VINTAGES" (
   credit_code                VARCHAR(100)   NOT NULL,
   verified_co2_reduction     NUMERIC(20,4)  NOT NULL,
   issued_creadit_amount      NUMERIC(20,4)  NOT NULL,
-  status                     VARCHAR(20)    NOT NULL DEFAULT 'MINTING',
+  status                     VARCHAR(20)    NOT NULL DEFAULT 'VERIFIED',
   token_id                   BIGINT,
   mint_tx_hash               VARCHAR(255),
   minted_amount              NUMERIC(20,4),
@@ -160,7 +160,7 @@ CREATE TABLE public."PROJECT_VINTAGES" (
     ON UPDATE CASCADE,
 
   CONSTRAINT chk_project_vintages_status
-    CHECK (status IN ('MINTING', 'MINTED', 'ERROR')),
+    CHECK (status IN ('VERIFIED', 'MINTING', 'MINTED', 'ERROR')),
 
   CONSTRAINT chk_project_vintages_vintage_year
     CHECK (vintage_year >= 1900 AND vintage_year <= 3000),

@@ -39,7 +39,12 @@ export class ProjectRepository extends BaseRepository<ProjectDB> {
         tokenCode: v.credit_code,
         quantity: v.issued_creadit_amount,
         available: Math.max(0, totalOwnedMock - activeListingsTotal),
-        price: v.LISTINGS?.[0]?.price_per_unit || 0
+        price: v.LISTINGS?.[0]?.price_per_unit || 0,
+        status: v.status,
+        tokenId: v.token_id ?? null,
+        mintTxHash: v.mint_tx_hash ?? null,
+        mintedAmount: v.minted_amount ?? null,
+        mintedAt: v.minted_at ?? null,
       }
     });
 

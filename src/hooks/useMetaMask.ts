@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { BrowserProvider } from 'ethers'
 import type { WalletState, UserRole } from '../types'
 import { supabase } from '../database/supabase'
+import { CHAIN_ID, NETWORK_NAME } from '../contracts/contractConfig'
 
 export function useMetaMask() {
   const [wallet, setWallet] = useState<WalletState>({
@@ -13,11 +14,61 @@ export function useMetaMask() {
   const [error, setError] = useState<string>('')
   const [isInitializing, setIsInitializing] = useState(true)
 
+  const switchNetwork = useCallback(async () => {
+    const eth = (window as any).ethereum
+    if (!eth) return false
+    
+    const hexChainId = `0x${CHAIN_ID.toString(16)}`
+    try {
+      await eth.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: hexChainId }],
+      })
+      return true
+    } catch (error: any) {
+      if (error.code === 4902) {
+        try {
+          await eth.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: hexChainId,
+                chainName: NETWORK_NAME,
+                rpcUrls: ['http://127.0.0.1:8545/'],
+                nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+              },
+            ],
+          })
+          return true
+        } catch (addError) {
+          console.error('Failed to add network', addError)
+          return false
+        }
+      }
+      console.error('Failed to switch network', error)
+      return false
+    }
+  }, [])
+
+  const getNetworkError = useCallback(async (provider: BrowserProvider) => {
+    const network = await provider.getNetwork()
+    const chainId = Number(network.chainId)
+    if (chainId !== CHAIN_ID) {
+      return `MetaMask đang ở sai mạng. Hãy chuyển sang ${NETWORK_NAME} (chainId ${CHAIN_ID}).`
+    }
+    return ''
+  }, [])
+
   // Helper to fetch account details and set state
   const loadAccountData = useCallback(async (address: string, shouldRedirect: boolean = false) => {
     try {
       const eth = (window as any).ethereum
       const provider = new BrowserProvider(eth)
+      const networkError = await getNetworkError(provider)
+      if (networkError) {
+        setError(networkError)
+        return false
+      }
       const balance = await provider.getBalance(address)
       const balanceEth = balance.toString()
 
@@ -79,7 +130,23 @@ export function useMetaMask() {
       }
 
       const eth = (window as any).ethereum
-      const provider = new BrowserProvider(eth)
+      let provider = new BrowserProvider(eth)
+      let networkError = await getNetworkError(provider)
+
+      if (networkError) {
+        const switched = await switchNetwork()
+        if (!switched) {
+          setError(networkError)
+          return false
+        }
+        // Re-initialize provider after network switch
+        provider = new BrowserProvider(eth)
+        networkError = await getNetworkError(provider)
+        if (networkError) {
+          setError(networkError)
+          return false
+        }
+      }
       
       // Request new account selection every time (won't cache)
       const accounts = await provider.send('eth_requestAccounts', [])
@@ -103,7 +170,7 @@ export function useMetaMask() {
       }
       return false
     }
-  }, [isMetaMaskInstalled])
+  }, [getNetworkError, isMetaMaskInstalled, loadAccountData, switchNetwork])
 
   // Disconnect wallet
   const disconnect = useCallback(async () => {
@@ -149,7 +216,14 @@ export function useMetaMask() {
       try {
         const accounts = await eth.request({ method: 'eth_accounts' })
         if (accounts && accounts.length > 0) {
-          await loadAccountData(accounts[0], false) // Do NOT redirect on F5
+          const provider = new BrowserProvider(eth)
+          const networkError = await getNetworkError(provider)
+          if (networkError) {
+            setError(networkError)
+          } else {
+            setError('')
+            await loadAccountData(accounts[0], false) // Do NOT redirect on F5
+          }
         }
       } catch (err) {
         console.error('Auto login failed', err)
@@ -180,7 +254,7 @@ export function useMetaMask() {
       eth.removeListener('accountsChanged', handleAccountsChanged)
       eth.removeListener('chainChanged', handleChainChanged)
     }
-  }, [disconnect, isMetaMaskInstalled, loadAccountData])
+  }, [disconnect, getNetworkError, isMetaMaskInstalled, loadAccountData])
 
   return {
     wallet,
