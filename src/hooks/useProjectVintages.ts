@@ -24,3 +24,30 @@ export function useProjectVintages() {
 
   return { projectVintages, loading, reload };
 }
+
+export function useProjectVintage(id: string | null) {
+  const [projectVintage, setProjectVintage] = useState<ProjectVintageWithDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProjectVintage() {
+      setLoading(true);
+      try {
+        if (!id) {
+          setProjectVintage(null);
+          return;
+        }
+        const data = await projectVintageRepository.getByIdWithDetails(id);
+        setProjectVintage(data);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProjectVintage();
+  }, [id]);
+
+  return { projectVintage, loading };
+}
