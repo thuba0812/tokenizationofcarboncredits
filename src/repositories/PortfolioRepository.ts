@@ -95,7 +95,8 @@ export class PortfolioRepository extends BaseRepository<any> {
   }
 
   async getTransactions(walletId: number): Promise<Transaction[]> {
-    const { data, error } = await this.client
+    // 1. Fetch base logs
+    const { data: logs, error } = await this.client
       .from('TOKEN_ACTIVITY_LOGS')
       .select(`
         *,
@@ -107,23 +108,51 @@ export class PortfolioRepository extends BaseRepository<any> {
       .eq('wallet_id', walletId)
       .order('created_at', { ascending: false })
 
-    if (error) {
+    if (error || !logs) {
       console.error('Error fetching transactions:', error)
       return []
     }
 
-    return (data as any[]).map((row) => {
+    // 2. Extract reference IDs to fetch hashes in bulk
+    const listingIds = logs.filter(l => l.reference_type === 'LISTING' && l.reference_id).map(l => l.reference_id)
+    const purchaseIds = logs.filter(l => l.reference_type === 'PURCHASE' && l.reference_id).map(l => l.reference_id)
+    const retirementIds = logs.filter(l => l.reference_type === 'RETIREMENT' && l.reference_id).map(l => l.reference_id)
+
+    // 3. Fetch hashes in parallel
+    const [listings, purchases, retirements] = await Promise.all([
+      listingIds.length > 0 ? this.client.from('LISTINGS').select('listing_id, listing_tx_hash').in('listing_id', listingIds) : Promise.resolve({ data: [] }),
+      purchaseIds.length > 0 ? this.client.from('PURCHASES').select('purchase_id, purchase_tx_hash').in('purchase_id', purchaseIds) : Promise.resolve({ data: [] }),
+      retirementIds.length > 0 ? this.client.from('RETIREMENTS').select('retirement_id, retirement_tx_hash').in('retirement_id', retirementIds) : Promise.resolve({ data: [] })
+    ])
+
+    const listingMap = new Map(listings.data?.map(l => [l.listing_id, l.listing_tx_hash]))
+    const purchaseMap = new Map(purchases.data?.map(p => [p.purchase_id, p.purchase_tx_hash]))
+    const retirementMap = new Map(retirements.data?.map(r => [r.retirement_id, r.retirement_tx_hash]))
+
+    // 4. Map to DTO
+    return (logs as any[]).map((row) => {
       let type: 'mint' | 'sell' | 'request' | 'retire' = 'request'
       if (row.activity_type === 'MINT') type = 'mint'
       else if (row.activity_type === 'PURCHASE') type = 'sell'
       else if (row.activity_type === 'RETIRE' || row.activity_type === 'BURN') type = 'retire'
 
       const projectCode = row.PROJECT_VINTAGES?.PROJECTS?.project_code || 'UNKNOWN'
+      
+      let txHash = '0x...'
+      if (row.activity_type === 'MINT') {
+        txHash = row.PROJECT_VINTAGES?.mint_tx_hash || '0x...'
+      } else if (row.reference_type === 'LISTING') {
+        txHash = listingMap.get(row.reference_id) || '0x...'
+      } else if (row.reference_type === 'PURCHASE') {
+        txHash = purchaseMap.get(row.reference_id) || '0x...'
+      } else if (row.reference_type === 'RETIREMENT') {
+        txHash = retirementMap.get(row.reference_id) || '0x...'
+      }
 
       return {
         id: row.activity_id.toString(),
         date: new Date(row.created_at).toLocaleDateString('vi-VN'),
-        txHash: row.reference_type === 'RETIREMENT' ? '0x...' : ('0x' + Math.random().toString(16).substr(2, 8)),
+        txHash: txHash || '0x...',
         activity: `${row.activity_type} (${projectCode})`,
         projectCode,
         amount: row.delta_amount,

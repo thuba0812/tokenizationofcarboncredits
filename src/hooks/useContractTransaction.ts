@@ -91,6 +91,13 @@ export function useContractTransaction() {
 
         return { success: true, txHash: lastTxHash };
       } catch (err: any) {
+        console.error('=== FULL TX ERROR ===', err);
+        console.error('err.code:', err.code);
+        console.error('err.reason:', err.reason);
+        console.error('err.message:', err.message);
+        console.error('err.info:', err.info);
+        console.error('err.error:', err.error);
+
         let errorMessage = 'Lỗi không xác định';
 
         if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
@@ -101,12 +108,17 @@ export function useContractTransaction() {
           errorMessage = 'Lỗi nội bộ từ blockchain. Kiểm tra lại dữ liệu';
         } else if (err.reason) {
           errorMessage = `Smart contract lỗi: ${err.reason}`;
+        } else if (err.info?.error?.message) {
+          errorMessage = `Blockchain lỗi: ${err.info.error.message}`;
+        } else if (err.error?.message) {
+          errorMessage = `Lỗi: ${err.error.message}`;
+        } else if (err.shortMessage) {
+          errorMessage = err.shortMessage;
         } else if (err.message) {
-          // Trích xuất lỗi revert reason nếu có
           const revertMatch = err.message.match(/reason="([^"]+)"/);
           if (revertMatch) {
             errorMessage = `Lỗi contract: ${revertMatch[1]}`;
-          } else if (err.message.length < 200) {
+          } else if (err.message.length < 300) {
             errorMessage = err.message;
           }
         }

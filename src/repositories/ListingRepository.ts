@@ -77,7 +77,7 @@ export class ListingRepository extends BaseRepository<ListingDB> {
     return items
   }
 
-  async createListings(walletAddress: string, items: { vintageId: number; quantity: number; price: number }[]): Promise<boolean> {
+  async createListings(walletAddress: string, items: { vintageId: number; quantity: number; price: number }[], txHash?: string): Promise<boolean> {
     const { data: walletData, error: walletError } = await this.client
       .from('WALLETS')
       .select('wallet_id')
@@ -174,19 +174,38 @@ export class ListingRepository extends BaseRepository<ListingDB> {
       }
     }
 
-    const payload = items.map((item) => ({
-      project_vintage_id: item.vintageId,
-      seller_wallet_id: sellerWalletId,
-      price_per_unit: item.price,
-      listed_amount: item.quantity,
-      listing_status: 'ACTIVE',
-    }))
+    for (const item of items) {
+      const { data: newListing, error: listingError } = await this.client
+        .from('LISTINGS')
+        .insert({
+          project_vintage_id: item.vintageId,
+          seller_wallet_id: sellerWalletId,
+          price_per_unit: item.price,
+          listed_amount: item.quantity,
+          listing_status: 'ACTIVE',
+          listing_tx_hash: txHash || null,
+        })
+        .select('listing_id')
+        .single()
 
-    const { error } = await this.client.from('LISTINGS').insert(payload)
+      if (listingError) {
+        console.error('Error inserting listing:', listingError)
+        return false
+      }
 
-    if (error) {
-      console.error('Error inserting listings data into database:', error)
-      return false
+      const { error: logError } = await this.client.from('TOKEN_ACTIVITY_LOGS').insert({
+        wallet_id: sellerWalletId,
+        project_vintage_id: item.vintageId,
+        activity_type: 'LIST',
+        delta_amount: -item.quantity,
+        reference_id: newListing.listing_id,
+        reference_type: 'LISTING',
+      })
+
+      if (logError) {
+        console.error('Error inserting activity log:', logError)
+        return false
+      }
     }
 
     return true

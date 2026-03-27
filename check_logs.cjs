@@ -17,8 +17,12 @@ async function check() {
     return;
   }
 
-  console.log('Total Logs:', data.length);
-  console.table(data);
+  if (data && data.length > 0) {
+    console.log('Sample Log Row (Full JSON):');
+    console.log(JSON.stringify(data[0], null, 2));
+  } else {
+    console.log('No logs found.');
+  }
 }
 
 check();

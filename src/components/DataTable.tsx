@@ -38,7 +38,7 @@ export default function DataTable({ transactions }: DataTableProps) {
               <td className="px-5 py-4 text-right">
                 {tx.amount !== undefined ? (
                   <span className={`text-sm font-bold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()} tCO2e
+                    {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()} Token
                   </span>
                 ) : (
                   <span className="text-sm text-gray-400">---</span>

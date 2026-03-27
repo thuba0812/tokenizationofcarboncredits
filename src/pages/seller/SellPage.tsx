@@ -168,7 +168,7 @@ export default function SellPage() {
       }))
 
       const onChainItems = selectedRows.map((row) => ({
-        tokenId: row.vintageId,
+        tokenId: row.tokenId,
         pricePerUnit: parseDecimal(getPriceInput(row)).value,
         amount: parseWholeNumber(getQuantityInput(row)).value,
       }))
@@ -177,7 +177,7 @@ export default function SellPage() {
 
       if (isContractConfigured()) {
         const steps = []
-        const isApproved = await contractService.isMarketplaceApproved()
+        const isApproved = false // Luôn approve trước để không bị trình duyệt chặn MetaMask popup
         if (!isApproved) {
           steps.push({
             label: 'Cấp quyền cho Marketplace',
@@ -191,12 +191,17 @@ export default function SellPage() {
         })
 
         const result = await txState.execute(steps)
-        if (!result.success) return
+        if (!result.success) {
+          // Giữ nguyên error state để hiển thị trong modal, KHÔNG reset
+          setIsSubmitting(false)
+          submitLockRef.current = false
+          return
+        }
         txHash = result.txHash
       }
 
       const { listingRepository } = await import('../../repositories/ListingRepository')
-      const success = await listingRepository.createListings(wallet.address, itemsToSell)
+      const success = await listingRepository.createListings(wallet.address, itemsToSell, txHash || undefined)
 
       if (!success) {
         alert('Có lỗi xảy ra khi lưu lên cơ sở dữ liệu.')
@@ -212,7 +217,6 @@ export default function SellPage() {
     } finally {
       setIsSubmitting(false)
       submitLockRef.current = false
-      txState.reset()
     }
   }
 
