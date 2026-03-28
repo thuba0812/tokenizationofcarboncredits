@@ -14,6 +14,7 @@ export interface MarketplaceItem {
   available: number
   pricePerToken: number
   listingId: number
+  onchainListingId: number
   vintageId: number
   sellerWalletAddress: string
 }
@@ -102,6 +103,7 @@ export class ListingRepository extends BaseRepository<ListingDB> {
         available: Number(listing.listed_amount),
         pricePerToken: Number(listing.price_per_unit),
         listingId: Number(listing.listing_id),
+        onchainListingId: Number(listing.onchain_listing_id),
         vintageId: Number(vintage.project_vintage_id),
         sellerWalletAddress: listing.WALLETS?.wallet_address || '',
       })
