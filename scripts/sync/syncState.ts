@@ -1,4 +1,5 @@
 import hre from "hardhat";
+import "@nomicfoundation/hardhat-ethers";
 import { createClient } from "@supabase/supabase-js";
 const CARBON_TOKEN_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
 

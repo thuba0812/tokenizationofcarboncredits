@@ -90,9 +90,11 @@ export default function ModeratorListPage() {
       throw new Error(`issued_creadit_amount của ${row.credit_code} phải là số nguyên dương`)
     }
 
+    const tokenId = Number(row.PROJECTS.project_id) * 10000 + Number(row.vintage_year)
+
     return {
       to: row.ownerWalletAddress,
-      tokenId: row.project_vintage_id,
+      tokenId: tokenId,
       projectId: row.PROJECTS.project_code,
       serialId: row.credit_code,
       vintageYear: Number(row.vintage_year),
@@ -162,11 +164,13 @@ export default function ModeratorListPage() {
               continue
             }
 
+            const tokenId = Number(row.PROJECTS.project_id) * 10000 + Number(row.vintage_year)
+
             await projectVintageRepository.markMinted(
               row.project_vintage_id,
               result.txHash,
               Number(row.issued_creadit_amount),
-              row.project_vintage_id,
+              tokenId,
               row.ownerWalletId
             )
           } catch (dbError) {
@@ -298,11 +302,10 @@ export default function ModeratorListPage() {
               <button
                 key={value}
                 onClick={() => setPage(value)}
-                className={`w-8 h-8 font-heading font-bold text-sm rounded border transition-colors cursor-pointer ${
-                  value === currentPage
+                className={`w-8 h-8 font-heading font-bold text-sm rounded border transition-colors cursor-pointer ${value === currentPage
                     ? 'bg-green-700 text-white border-green-700'
                     : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 {value}
               </button>

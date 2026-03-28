@@ -10,9 +10,13 @@ export function usePortfolio(walletId: number) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const { BrowserProvider } = await import('ethers');
+      const eth = (window as any).ethereum;
+      const provider = eth ? new BrowserProvider(eth) : undefined;
+
       const [c, t] = await Promise.all([
         portfolioRepository.getPurchasedCredits(walletId),
-        portfolioRepository.getTransactions(walletId)
+        portfolioRepository.getTransactions(walletId, provider)
       ]);
       setCredits(c);
       setTransactions(t);

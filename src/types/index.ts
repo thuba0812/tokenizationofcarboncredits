@@ -59,6 +59,7 @@ export interface Project {
 export interface WalletState {
   address: string | null
   balance: string
+  usdtBalance: string
   isConnected: boolean
   role: UserRole
 }
@@ -73,6 +74,14 @@ export interface Transaction {
   projectCode: string
   amount?: number
   type: TransactionType
+  // New fields for detailed view
+  blockNumber?: number
+  from?: string
+  to?: string
+  value?: string // Token value description
+  usdtAmount?: number // Actual USDT value
+  gasFee?: string // ETH value
+  status?: 'Success' | 'Failed' | 'Pending'
 }
 
 // ─── Purchased Carbon Credit ────────────────────────────────────────────────

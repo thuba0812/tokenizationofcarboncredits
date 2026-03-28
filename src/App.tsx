@@ -79,7 +79,7 @@ function AppContent({
 }
 
 export default function App() {
-  const { wallet, connect, disconnect, error, isInitializing } = useMetaMask()
+  const { wallet, connect, disconnect, refreshBalance, error, isInitializing } = useMetaMask()
 
   const handleConnect = () => {
     if (wallet.isConnected) {
@@ -108,7 +108,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <WalletProvider wallet={wallet} error={error} isInitializing={isInitializing} connect={connect}>
+      <WalletProvider wallet={wallet} error={error} isInitializing={isInitializing} connect={connect} refreshBalance={refreshBalance}>
         <AppContent 
           wallet={wallet} 
           handleConnect={handleConnect} 
