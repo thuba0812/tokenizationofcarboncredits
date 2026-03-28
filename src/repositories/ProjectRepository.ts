@@ -27,9 +27,14 @@ export class ProjectRepository extends BaseRepository<ProjectDB> {
     };
 
     const tokens: TokenYear[] = (row.PROJECT_VINTAGES || []).map((v: any) => {
-      const activeListingsTotal = (v.LISTINGS || [])
-        .filter((l: any) => l.listing_status === 'ACTIVE')
-        .reduce((sum: number, l: any) => sum + Number(l.listed_amount || 0), 0)
+      const activeListings = (v.LISTINGS || []).filter((l: any) => l.listing_status === 'ACTIVE')
+      const latestActiveListing = [...activeListings].sort(
+        (a: any, b: any) => Number(b.listing_id || 0) - Number(a.listing_id || 0)
+      )[0]
+      const activeListingsTotal = activeListings.reduce(
+        (sum: number, l: any) => sum + Number(l.listed_amount || 0),
+        0
+      )
 
       const totalOwnedMock = v.issued_creadit_amount - (v.minted_amount || 0)
 
@@ -39,9 +44,12 @@ export class ProjectRepository extends BaseRepository<ProjectDB> {
         tokenCode: v.credit_code,
         quantity: v.issued_creadit_amount,
         available: Math.max(0, totalOwnedMock - activeListingsTotal),
-        price: v.LISTINGS?.[0]?.price_per_unit || 0,
+        price: latestActiveListing ? Number(latestActiveListing.price_per_unit || 0) : 0,
+        currentListingId: latestActiveListing ? Number(latestActiveListing.listing_id) : null,
+        onchainListingId: latestActiveListing?.onchain_listing_id ? Number(latestActiveListing.onchain_listing_id) : null,
+        listingTxHash: latestActiveListing?.listing_tx_hash ?? null,
         status: v.status,
-        tokenId: v.token_id ?? null,
+        tokenId: v.token_id ? Number(v.token_id) : null,
         mintTxHash: v.mint_tx_hash ?? null,
         mintedAmount: v.minted_amount ?? null,
         mintedAt: v.minted_at ?? null,

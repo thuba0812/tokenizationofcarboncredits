@@ -35,6 +35,45 @@ export class PortfolioRepository extends BaseRepository<any> {
       return []
     }
 
+    const sellerListingIds = Array.from(
+      new Set(
+        ((data as any[]) || []).flatMap((row) =>
+          ((row.PROJECT_VINTAGES?.PROJECTS?.PROJECT_VINTAGES || []) as any[])
+            .flatMap((vintage: any) => vintage.LISTINGS || [])
+            .filter((listing: any) => Number(listing.seller_wallet_id) === Number(walletId))
+            .map((listing: any) => Number(listing.listing_id))
+        )
+      )
+    )
+
+    const soldAmountByListingId = new Map<number, number>()
+
+    if (sellerListingIds.length > 0) {
+      const { data: purchaseItems, error: purchaseItemsError } = await this.client
+        .from('PURCHASE_ITEMS')
+        .select(`
+          listing_id,
+          purchased_amount,
+          PURCHASES (
+            purchase_status
+          )
+        `)
+        .in('listing_id', sellerListingIds)
+
+      if (purchaseItemsError) {
+        console.error('Error fetching purchase items for sold amount:', purchaseItemsError)
+      } else {
+        for (const item of (purchaseItems as any[]) || []) {
+          const purchase = Array.isArray(item.PURCHASES) ? item.PURCHASES[0] : item.PURCHASES
+          if (purchase?.purchase_status !== 'COMPLETED') continue
+
+          const listingId = Number(item.listing_id)
+          const purchasedAmount = Number(item.purchased_amount || 0)
+          soldAmountByListingId.set(listingId, (soldAmountByListingId.get(listingId) || 0) + purchasedAmount)
+        }
+      }
+    }
+
     const credits: PurchasedCredit[] = []
 
     for (const row of data as any[]) {
@@ -47,16 +86,25 @@ export class PortfolioRepository extends BaseRepository<any> {
         (item: any) => Number(item.project_vintage_id) === Number(row.project_vintage_id)
       )
       const activeListings = (projectVintage?.LISTINGS || []).filter(
-        (listing: any) => listing.listing_status === 'ACTIVE'
+        (listing: any) =>
+          listing.listing_status === 'ACTIVE' && Number(listing.seller_wallet_id) === Number(walletId)
       )
+      const latestActiveListing = [...activeListings].sort(
+        (a: any, b: any) => Number(b.listing_id || 0) - Number(a.listing_id || 0)
+      )[0]
       const listedAmount = activeListings.reduce(
         (sum: number, listing: any) => sum + Number(listing.listed_amount || 0),
         0
       )
-      const activePrice = activeListings.length > 0 ? Number(activeListings[0].price_per_unit) : null
+      const activePrice = latestActiveListing ? Number(latestActiveListing.price_per_unit) : null
       const quantity = Number(row.current_amount || 0)
-      const mintedAmount = Number(vintage.minted_amount || 0)
-      const soldAmount = Math.max(0, mintedAmount - quantity - listedAmount)
+      const sellerListings = (projectVintage?.LISTINGS || []).filter(
+        (listing: any) => Number(listing.seller_wallet_id) === Number(walletId)
+      )
+      const soldAmount = sellerListings.reduce(
+        (sum: number, listing: any) => sum + (soldAmountByListingId.get(Number(listing.listing_id)) || 0),
+        0
+      )
 
       const token: TokenYear = {
         vintageId: vintage.project_vintage_id,
@@ -67,8 +115,11 @@ export class PortfolioRepository extends BaseRepository<any> {
         listedAmount,
         soldAmount,
         price: activePrice,
+        currentListingId: latestActiveListing ? Number(latestActiveListing.listing_id) : null,
+        onchainListingId: latestActiveListing?.onchain_listing_id ? Number(latestActiveListing.onchain_listing_id) : null,
+        listingTxHash: latestActiveListing?.listing_tx_hash ?? null,
         status: vintage.status,
-        tokenId: vintage.status === 'MINTED' ? (vintage.token_id ?? null) : null,
+        tokenId: vintage.status === 'MINTED' && vintage.token_id ? Number(vintage.token_id) : null,
         mintTxHash: vintage.mint_tx_hash ?? null,
         mintedAmount: vintage.minted_amount ?? null,
         mintedAt: vintage.minted_at ?? null,
@@ -117,6 +168,7 @@ export class PortfolioRepository extends BaseRepository<any> {
       if (row.activity_type === 'MINT') type = 'mint'
       else if (row.activity_type === 'PURCHASE') type = 'sell'
       else if (row.activity_type === 'RETIRE' || row.activity_type === 'BURN') type = 'retire'
+      else if (row.activity_type === 'LIST' || row.activity_type === 'PURCHASE') type = 'sell'
 
       const projectCode = row.PROJECT_VINTAGES?.PROJECTS?.project_code || 'UNKNOWN'
 

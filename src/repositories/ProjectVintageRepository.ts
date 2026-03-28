@@ -162,23 +162,6 @@ export class ProjectVintageRepository extends BaseRepository<ProjectVintageDB> {
     }
 
     if (walletId) {
-      const { error: balanceError } = await this.client
-        .from('TOKEN_BALANCES')
-        .upsert(
-          {
-            wallet_id: walletId,
-            project_vintage_id: projectVintageId,
-            current_amount: amount,
-          },
-          {
-            onConflict: 'wallet_id,project_vintage_id',
-          }
-        );
-
-      if (balanceError) {
-        throw balanceError;
-      }
-
       const { error: activityError } = await this.client
         .from('TOKEN_ACTIVITY_LOGS')
         .insert({

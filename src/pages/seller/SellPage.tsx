@@ -16,9 +16,11 @@ interface SellRow {
   vintageId: number
   year: number
   tokenId: number
-  quantity: number
+  available: number
   listedAmount: number
   price: number | null
+  currentListingId: number | null
+  onchainListingId: number | null
 }
 
 type RowErrors = {
@@ -30,7 +32,7 @@ export default function SellPage() {
   const navigate = useNavigate()
   const { wallet } = useWallet()
   const { walletId, loading: identityLoading } = useWalletIdentity(wallet.address)
-  const { credits, loading } = usePortfolio(walletId ?? 0)
+  const { credits, loading, refetch } = usePortfolio(walletId ?? 0)
   const [search, setSearch] = useState('')
   const [quantityInputs, setQuantityInputs] = useState<Record<number, string>>({})
   const [priceInputs, setPriceInputs] = useState<Record<number, string>>({})
@@ -53,9 +55,11 @@ export default function SellPage() {
             vintageId: token.vintageId as number,
             year: token.year,
             tokenId: token.tokenId as number,
-            quantity: token.quantity,
+            available: token.available,
             listedAmount: token.listedAmount || 0,
             price: token.price ?? null,
+            currentListingId: token.currentListingId ?? null,
+            onchainListingId: token.onchainListingId ?? null,
           }))
       ),
     [credits]
@@ -68,11 +72,8 @@ export default function SellPage() {
       String(row.tokenId).includes(search)
   )
 
-  const getQuantityInput = (row: SellRow) =>
-    quantityInputs[row.tokenId] ?? (row.listedAmount > 0 ? String(row.listedAmount) : '')
-
-  const getPriceInput = (row: SellRow) =>
-    priceInputs[row.tokenId] ?? (typeof row.price === 'number' && row.price > 0 ? String(row.price) : '')
+  const getQuantityInput = (row: SellRow) => quantityInputs[row.tokenId] ?? ''
+  const getPriceInput = (row: SellRow) => priceInputs[row.tokenId] ?? ''
 
   const parseWholeNumber = (value: string) => {
     const trimmed = value.trim()
@@ -88,27 +89,46 @@ export default function SellPage() {
     return { value: Number(trimmed), invalid: false, empty: false }
   }
 
+  const actionableRows = useMemo(
+    () =>
+      filtered.filter((row) => {
+        const quantityRaw = getQuantityInput(row).trim()
+        const priceRaw = getPriceInput(row).trim()
+        return quantityRaw !== '' || priceRaw !== ''
+      }),
+    [filtered, priceInputs, quantityInputs]
+  )
+
   const rowErrors = useMemo<Record<number, RowErrors>>(() => {
     const next: Record<number, RowErrors> = {}
 
-    for (const row of filtered) {
-      const quantityParsed = parseWholeNumber(getQuantityInput(row))
-      const priceParsed = parseDecimal(getPriceInput(row))
+    for (const row of actionableRows) {
+      const quantityRaw = getQuantityInput(row).trim()
+      const priceRaw = getPriceInput(row).trim()
+      const quantityParsed = parseWholeNumber(quantityRaw)
+      const priceParsed = parseDecimal(priceRaw)
       const errors: RowErrors = {}
-      const maxSellable = row.quantity + row.listedAmount
+      const hasExistingListing = row.listedAmount > 0 || Boolean(row.currentListingId || row.onchainListingId)
+      const effectiveQuantity = quantityRaw === '' ? row.listedAmount : quantityParsed.value
+      const effectivePrice = priceRaw === '' ? (row.price ?? 0) : priceParsed.value
+      const maxSellable = row.available + row.listedAmount
 
       if (quantityParsed.invalid) {
         errors.quantity = 'Vui lòng nhập số nguyên hợp lệ.'
-      } else if (quantityParsed.value < 0) {
-        errors.quantity = 'Số lượng bán không được nhỏ hơn 0.'
-      } else if (quantityParsed.value > maxSellable) {
-        errors.quantity = `Số lượng bán không được vượt quá ${maxSellable}.`
+      } else if (hasExistingListing && !row.onchainListingId) {
+        errors.quantity = 'Listing hiện tại chưa có onchain_listing_id, cần đồng bộ dữ liệu trước khi sửa.'
+      } else if (effectiveQuantity < 0) {
+        errors.quantity = 'Số lượng đang bán không được nhỏ hơn 0.'
+      } else if (effectiveQuantity === 0 && !hasExistingListing) {
+        errors.quantity = 'Token này chưa có listing để hủy.'
+      } else if (effectiveQuantity > maxSellable) {
+        errors.quantity = `Số lượng đang bán không được vượt quá ${maxSellable}.`
       }
 
-      if (quantityParsed.value > 0) {
+      if (effectiveQuantity > 0) {
         if (priceParsed.invalid) {
           errors.price = 'Vui lòng nhập số hợp lệ.'
-        } else if (priceParsed.value <= 0) {
+        } else if (effectivePrice <= 0) {
           errors.price = 'Giá phải lớn hơn 0.'
         }
       }
@@ -119,16 +139,15 @@ export default function SellPage() {
     }
 
     return next
-  }, [filtered, priceInputs, quantityInputs])
+  }, [actionableRows, priceInputs, quantityInputs])
 
-  const selectedRows = filtered.filter((row) => {
-    const parsed = parseWholeNumber(getQuantityInput(row))
-    return !parsed.invalid && parsed.value > 0
-  })
+  const totalTokens = actionableRows.reduce((sum, row) => {
+    const quantityRaw = getQuantityInput(row).trim()
+    const quantity = quantityRaw === '' ? row.listedAmount : parseWholeNumber(quantityRaw).value
+    return sum + Math.max(quantity, 0)
+  }, 0)
 
-  const hasValidationError = selectedRows.some((row) => rowErrors[row.tokenId]) || Object.keys(rowErrors).length > 0
-  const totalTokens = selectedRows.reduce((sum, row) => sum + parseWholeNumber(getQuantityInput(row)).value, 0)
-  const canSubmit = totalTokens > 0 && !hasValidationError && !isSubmitting && !txState.isLoading
+  const canSubmit = actionableRows.length > 0 && Object.keys(rowErrors).length === 0 && !isSubmitting && !txState.isLoading
 
   const handleQuantityChange = (tokenId: number, rawValue: string) => {
     setQuantityInputs((prev) => ({
@@ -147,11 +166,11 @@ export default function SellPage() {
   const handleReset = (row: SellRow) => {
     setQuantityInputs((prev) => ({
       ...prev,
-      [row.tokenId]: row.listedAmount > 0 ? String(row.listedAmount) : '',
+      [row.tokenId]: '',
     }))
     setPriceInputs((prev) => ({
       ...prev,
-      [row.tokenId]: typeof row.price === 'number' && row.price > 0 ? String(row.price) : '',
+      [row.tokenId]: '',
     }))
   }
 
@@ -160,35 +179,136 @@ export default function SellPage() {
 
     submitLockRef.current = true
     setIsSubmitting(true)
-    try {
-      const itemsToSell = selectedRows.map((row) => ({
-        vintageId: row.vintageId,
-        quantity: parseWholeNumber(getQuantityInput(row)).value,
-        price: parseDecimal(getPriceInput(row)).value,
-      }))
 
-      const onChainItems = selectedRows.map((row) => ({
-        tokenId: row.vintageId,
-        pricePerUnit: parseDecimal(getPriceInput(row)).value,
-        amount: parseWholeNumber(getQuantityInput(row)).value,
-      }))
+    try {
+      const actions = actionableRows.map((row) => {
+        const quantityRaw = getQuantityInput(row).trim()
+        const priceRaw = getPriceInput(row).trim()
+
+        return {
+          row,
+          quantity: quantityRaw === '' ? row.listedAmount : parseWholeNumber(quantityRaw).value,
+          price: priceRaw === '' ? (row.price ?? 0) : parseDecimal(priceRaw).value,
+        }
+      })
+
+      console.group('[SellPage] Payload before blockchain submit')
+      console.table(
+        actions.map((action) => ({
+          projectId: action.row.projectId,
+          vintageId: action.row.vintageId,
+          tokenId: action.row.tokenId,
+          quantity: action.quantity,
+          price: action.price,
+          onchainListingId: action.row.onchainListingId,
+        }))
+      )
+      console.groupEnd()
 
       let txHash: string | null = null
+      const metadataByVintageId: Record<
+        number,
+        {
+          txHash?: string | null
+          onchainListingId?: number | null
+          walletBalanceAfter?: number | null
+          listedAmountAfter?: number | null
+          isActiveOnChain?: boolean | null
+        }
+      > = {}
 
       if (isContractConfigured()) {
         const steps = []
         const isApproved = await contractService.isMarketplaceApproved()
-        if (!isApproved) {
+        const needsApproval = actions.some((item) => item.quantity > item.row.listedAmount)
+
+        if (!isApproved && needsApproval) {
           steps.push({
-            label: 'Cấp quyền cho Marketplace',
+            label: 'Cap quyen cho Marketplace',
             run: () => contractService.approveMarketplace(),
           })
         }
 
-        steps.push({
-          label: 'Đăng bán token trên blockchain',
-          run: () => contractService.createListingsBatch(onChainItems),
-        })
+        for (const action of actions) {
+          if (action.quantity === 0 && action.row.onchainListingId) {
+            steps.push({
+              label: `Hủy niêm yết token ${action.row.tokenId}`,
+              run: async () => {
+                const result = await contractService.cancelListingDetailed(action.row.onchainListingId as number)
+                const listingSnapshot = await contractService.getListingOnChain(result.listingId)
+                const walletBalanceAfter = await contractService.getCarbonTokenBalance(
+                  listingSnapshot.tokenId,
+                  listingSnapshot.seller
+                )
+                txHash = result.txHash
+                metadataByVintageId[action.row.vintageId] = {
+                  txHash: result.txHash,
+                  onchainListingId: result.listingId,
+                  walletBalanceAfter,
+                  listedAmountAfter: listingSnapshot.availableAmount,
+                  isActiveOnChain: listingSnapshot.active,
+                }
+                return result.txHash
+              },
+            })
+            continue
+          }
+
+          if (action.row.onchainListingId) {
+            steps.push({
+              label: `Cập nhật token ${action.row.tokenId}`,
+              run: async () => {
+                const result = await contractService.updateListingDetailed(
+                  action.row.onchainListingId as number,
+                  action.price,
+                  action.quantity
+                )
+                const listingSnapshot = await contractService.getListingOnChain(result.listingId)
+                const walletBalanceAfter = await contractService.getCarbonTokenBalance(
+                  listingSnapshot.tokenId,
+                  listingSnapshot.seller
+                )
+                txHash = result.txHash
+                metadataByVintageId[action.row.vintageId] = {
+                  txHash: result.txHash,
+                  onchainListingId: result.listingId,
+                  walletBalanceAfter,
+                  listedAmountAfter: listingSnapshot.availableAmount,
+                  isActiveOnChain: listingSnapshot.active,
+                }
+                return result.txHash
+              },
+            })
+            continue
+          }
+
+          steps.push({
+            label: `Đăng bán token ${action.row.tokenId}`,
+            run: async () => {
+              const result = await contractService.createListingsBatchDetailed([
+                {
+                  tokenId: action.row.tokenId,
+                  pricePerUnit: action.price,
+                  amount: action.quantity,
+                },
+              ])
+              const listingSnapshot = await contractService.getListingOnChain(result.listingIds[0] as number)
+              const walletBalanceAfter = await contractService.getCarbonTokenBalance(
+                listingSnapshot.tokenId,
+                listingSnapshot.seller
+              )
+              txHash = result.txHash
+              metadataByVintageId[action.row.vintageId] = {
+                txHash: result.txHash,
+                onchainListingId: result.listingIds[0] ?? null,
+                walletBalanceAfter,
+                listedAmountAfter: listingSnapshot.availableAmount,
+                isActiveOnChain: listingSnapshot.active,
+              }
+              return result.txHash
+            },
+          })
+        }
 
         const result = await txState.execute(steps)
         if (!result.success) return
@@ -196,19 +316,28 @@ export default function SellPage() {
       }
 
       const { listingRepository } = await import('../../repositories/ListingRepository')
-      const success = await listingRepository.createListings(wallet.address, itemsToSell)
+      const success = await listingRepository.createListings(
+        wallet.address,
+        actions.map((action) => ({
+          vintageId: action.row.vintageId,
+          quantity: action.quantity,
+          price: action.price,
+        })),
+        metadataByVintageId
+      )
 
       if (!success) {
-        alert('Có lỗi xảy ra khi lưu lên cơ sở dữ liệu.')
+        alert('Không thể lưu dữ liệu đăng bán vào cơ sở dữ liệu.')
         return
       }
 
+      await refetch()
       setSellTxHash(txHash)
       setShowConfirmSell(false)
       setShowSuccessSell(true)
     } catch (error) {
-      console.error('Lỗi quá trình bán:', error)
-      alert('Thao tác không thành công.')
+      console.error('Lỗi quá trình đăng bán:', error)
+      alert(error instanceof Error ? error.message : 'Thao tác không thành công.')
     } finally {
       setIsSubmitting(false)
       submitLockRef.current = false
@@ -238,7 +367,7 @@ export default function SellPage() {
               <div className="mb-10 h-1 w-32 bg-green-700" />
 
               <p className="mb-2 max-w-xs font-heading text-xl font-bold uppercase leading-tight text-gray-900">
-                BẠN CÓ CHẮC CHẮN MUỐN ĐĂNG BÁN {totalTokens.toLocaleString()} TOKEN KHÔNG?
+                BẠN CÓ CHẮC CHẮN MUỐN CẬP NHẬT {totalTokens.toLocaleString()} TOKEN KHÔNG?
               </p>
               <p className="mb-12 text-sm text-gray-500">Giá niêm yết sẽ được hiển thị công khai trên thị trường.</p>
 
@@ -274,14 +403,14 @@ export default function SellPage() {
                 </button>
               </div>
 
-              {hasValidationError ? (
+              {Object.keys(rowErrors).length > 0 ? (
                 <p className="mb-2 rounded bg-red-50 px-3 py-2 text-xs text-red-600">
-                  Vui lòng sửa các dòng đang có lỗi trước khi xác nhận bán.
+                  Vui lòng sửa các dòng đang có lỗi trước khi xác nhận.
                 </p>
               ) : null}
 
               {txState.status === 'error' ? (
-                <p className="mb-2 rounded bg-red-50 px-3 py-2 text-xs text-red-600">⚠ {txState.error}</p>
+                <p className="mb-2 rounded bg-red-50 px-3 py-2 text-xs text-red-600">{txState.error}</p>
               ) : null}
 
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
@@ -303,19 +432,19 @@ export default function SellPage() {
               </div>
 
               <h2 className="mb-2 font-heading text-3xl font-bold uppercase tracking-tight text-gray-900">
-                ĐĂNG BÁN THÀNH CÔNG
+                CẬP NHẬT THÀNH CÔNG
               </h2>
               <div className="mb-10 h-1 w-32 bg-green-700" />
 
               <p className="mb-12 max-w-xs font-heading text-xl font-bold uppercase leading-tight text-gray-900">
-                BẠN ĐÃ ĐĂNG BÁN THÀNH CÔNG {totalTokens.toLocaleString()} TOKEN.
+                BẠN ĐÃ CẬP NHẬT THÀNH CÔNG {actionableRows.length.toLocaleString()} TOKEN ID.
               </p>
 
               <div className="relative mb-12 w-full overflow-hidden border-l-4 border-green-700 bg-gray-50/50 p-6 text-left">
                 <div className="mb-6 flex items-start gap-4">
                   <ShieldCheck className="mt-0.5 h-5 w-5 text-gray-400" />
                   <p className="text-sm leading-relaxed text-gray-600">
-                    Giao dịch niêm yết đã được ghi nhận. Tài sản của bạn sẽ xuất hiện trên mục "Thị trường".
+                    Giao dịch niêm yết đã được ghi nhận. Tài sản của bạn sẽ được đồng bộ lại trên hệ thống.
                   </p>
                 </div>
                 <div className="flex items-end justify-between">
@@ -338,13 +467,13 @@ export default function SellPage() {
               </div>
 
               <button
-                  onClick={() => {
-                    setShowSuccessSell(false)
-                    navigate('/seller')
-                    submitLockRef.current = false
-                  }}
-                  className="w-full cursor-pointer bg-black py-5 font-heading text-base font-bold uppercase tracking-widest text-white transition-colors hover:bg-gray-900"
-                >
+                onClick={() => {
+                  setShowSuccessSell(false)
+                  navigate('/seller')
+                  submitLockRef.current = false
+                }}
+                className="w-full cursor-pointer bg-black py-5 font-heading text-base font-bold uppercase tracking-widest text-white transition-colors hover:bg-gray-900"
+              >
                 ĐÓNG
               </button>
             </div>
@@ -391,7 +520,7 @@ export default function SellPage() {
 
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Nếu đây là lần đầu dùng ví này để đăng bán, MetaMask có thể yêu cầu xác nhận 2 giao dịch:
-          cấp quyền cho Marketplace và tạo lệnh đăng bán.
+          cấp quyền cho Marketplace và tạo/cập nhật lệnh đăng bán.
         </div>
 
         <div className="mb-6 border-b border-gray-100 bg-white py-2">
@@ -409,7 +538,7 @@ export default function SellPage() {
               <span className="font-heading text-base font-bold uppercase tracking-widest text-black">HIỆN CÓ</span>
             </div>
             <div className="col-span-2 text-center">
-              <span className="font-heading text-base font-bold uppercase tracking-widest text-green-700">ĐĂNG BÁN</span>
+              <span className="font-heading text-base font-bold uppercase tracking-widest text-green-700">ĐANG BÁN</span>
             </div>
             <div className="col-span-1 text-center">
               <span className="font-heading text-base font-bold uppercase tracking-widest text-green-700">GIÁ</span>
@@ -441,31 +570,45 @@ export default function SellPage() {
 
                     <div className="col-span-2 pt-2 text-center font-mono text-sm text-gray-700">{row.tokenId}</div>
 
-                    <div className="col-span-2 pt-2 text-center font-heading text-sm font-bold text-gray-900">{row.quantity}</div>
+                    <div className="col-span-2 pt-2 text-center font-heading text-sm font-bold text-gray-900">{row.available}</div>
 
                     <div className="col-span-2">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={quantityInput}
-                        onChange={(e) => handleQuantityChange(row.tokenId, e.target.value)}
-                        className={`w-full rounded border px-3 py-2 text-sm outline-none transition-colors ${
-                          errors?.quantity ? 'border-red-300 bg-red-50 text-red-700' : 'border-gray-300 focus:border-green-500'
-                        }`}
-                      />
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                          <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">Hiện tại</span>
+                          <span className="text-sm font-semibold text-gray-900">{row.listedAmount || 0}</span>
+                        </div>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={quantityInput}
+                          placeholder={row.listedAmount > 0 ? 'Nhập tổng đang bán mới' : 'Nhập số lượng đang bán'}
+                          onChange={(e) => handleQuantityChange(row.tokenId, e.target.value)}
+                          className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 ${
+                            errors?.quantity ? 'border-red-300 bg-red-50 text-red-700' : 'border-gray-300 focus:border-green-600'
+                          }`}
+                        />
+                      </div>
                       {errors?.quantity ? <p className="mt-1 text-xs text-red-600">{errors.quantity}</p> : null}
                     </div>
 
                     <div className="col-span-1">
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={priceInput}
-                        onChange={(e) => handlePriceChange(row.tokenId, e.target.value)}
-                        className={`w-full rounded border px-3 py-2 text-center text-sm outline-none transition-colors ${
-                          errors?.price ? 'border-red-300 bg-red-50 text-red-700' : 'border-gray-300 focus:border-green-500'
-                        }`}
-                      />
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between rounded-lg border border-green-100 bg-green-50 px-3 py-2">
+                          <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">Hiện tại</span>
+                          <span className="text-sm font-semibold text-green-700">{typeof row.price === 'number' ? row.price : '-'}</span>
+                        </div>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={priceInput}
+                          placeholder={typeof row.price === 'number' ? 'Nhập giá mới' : 'Nhập giá'}
+                          onChange={(e) => handlePriceChange(row.tokenId, e.target.value)}
+                          className={`w-full rounded-lg border bg-white px-3 py-2.5 text-center text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 ${
+                            errors?.price ? 'border-red-300 bg-red-50 text-red-700' : 'border-gray-300 focus:border-green-600'
+                          }`}
+                        />
+                      </div>
                       {errors?.price ? <p className="mt-1 text-xs text-red-600">{errors.price}</p> : null}
                     </div>
 
@@ -496,8 +639,8 @@ export default function SellPage() {
             <div className="flex-1" />
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-end text-right">
-                <span className="font-heading text-sm font-bold uppercase tracking-widest text-gray-600">TỔNG BÁN</span>
-                <span className="text-xs font-bold uppercase text-gray-400">({selectedRows.length} token id):</span>
+                <span className="font-heading text-sm font-bold uppercase tracking-widest text-gray-600">TỔNG CẬP NHẬT</span>
+                <span className="text-xs font-bold uppercase text-gray-400">({actionableRows.length} token id):</span>
               </div>
               <div className="flex flex-col">
                 <div className="flex items-baseline gap-2">
@@ -522,8 +665,8 @@ export default function SellPage() {
             >
               XÁC NHẬN BÁN
             </button>
-            {hasValidationError ? (
-              <p className="text-sm text-red-600">Vui lòng sửa các dòng đang có lỗi trước khi đăng bán.</p>
+            {Object.keys(rowErrors).length > 0 ? (
+              <p className="text-sm text-red-600">Vui lòng sửa các dòng đang có lỗi trước khi xác nhận.</p>
             ) : null}
             {showConfirmSell || isSubmitting || txState.isLoading ? (
               <p className="text-sm text-amber-700">Đang chờ MetaMask, vui lòng không bấm xác nhận lặp lại.</p>

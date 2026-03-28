@@ -67,11 +67,11 @@ export default function SellerDetailPage() {
   )
 
   if (identityLoading || loading) {
-    return <div className="p-10 text-center">Dang tai du lieu...</div>
+    return <div className="p-10 text-center">Đang tải dữ liệu...</div>
   }
 
   if (!project) {
-    return <div className="p-10 text-center text-gray-400">Khong tim thay tai san cua du an nay trong vi hien tai.</div>
+    return <div className="p-10 text-center text-gray-400">Không tìm thấy tài sản của dự án này trong ví hiện tại.</div>
   }
 
   const representative = project.representative
@@ -101,21 +101,26 @@ export default function SellerDetailPage() {
     const quantityParsed = parseWholeNumber(draft.quantity)
     const priceParsed = parseDecimal(draft.price)
     const errors: RowErrors = {}
-    const maxSellable = token.quantity + (token.listedAmount || 0)
+    const maxSellable = token.available + (token.listedAmount || 0)
+    const hasExistingListing = Boolean(token.currentListingId || token.onchainListingId || token.listedAmount)
 
     if (quantityParsed.invalid) {
-      errors.quantity = 'Vui long nhap so nguyen hop le.'
+      errors.quantity = 'Vui lòng nhập số nguyên hợp lệ.'
+    } else if (hasExistingListing && !token.onchainListingId) {
+      errors.quantity = 'Listing hiện tại chưa có onchain_listing_id, cần đồng bộ dữ liệu trước khi sửa.'
     } else if (quantityParsed.value < 0) {
-      errors.quantity = 'So luong dang ban khong duoc nho hon 0.'
+      errors.quantity = 'Số lượng đang bán không được nhỏ hơn 0.'
+    } else if (quantityParsed.value === 0 && !hasExistingListing) {
+      errors.quantity = 'Lần đăng bán đầu tiên cần số lượng lớn hơn 0.'
     } else if (quantityParsed.value > maxSellable) {
-      errors.quantity = `So luong dang ban khong duoc vuot qua ${maxSellable}.`
+      errors.quantity = `Số lượng đang bán không được vượt quá ${maxSellable}.`
     }
 
     if (quantityParsed.value > 0) {
       if (priceParsed.invalid) {
-        errors.price = 'Vui long nhap so hop le.'
+        errors.price = 'Vui lòng nhập số hợp lệ.'
       } else if (priceParsed.value <= 0) {
-        errors.price = 'Gia phai lon hon 0.'
+        errors.price = 'Giá phải lớn hơn 0.'
       }
     }
 
@@ -183,47 +188,112 @@ export default function SellerDetailPage() {
 
     try {
       let txHash: string | null = null
+      let onchainListingId: number | null = token.onchainListingId ?? null
+      let walletBalanceAfter: number | null = null
+      let listedAmountAfter: number | null = null
+      let isActiveOnChain: boolean | null = null
 
       if (isContractConfigured()) {
         const steps = []
         const isApproved = await contractService.isMarketplaceApproved()
-        if (!isApproved) {
+        const needsApproval = quantity > (token.listedAmount || 0)
+
+        if (!isApproved && needsApproval) {
           steps.push({
-            label: 'Cap quyen cho Marketplace',
+            label: 'Cấp quyền cho Marketplace',
             run: () => contractService.approveMarketplace(),
           })
         }
 
-        steps.push({
-          label: 'Cap nhat lenh dang ban tren blockchain',
-          run: () =>
-            contractService.createListingsBatch([
-              {
-                tokenId: token.vintageId as number,
-                pricePerUnit: price,
-                amount: quantity,
-              },
-            ]),
-        })
+        if (quantity === 0 && token.onchainListingId) {
+          steps.push({
+            label: 'Hủy lệnh đăng bán trên blockchain',
+            run: async () => {
+              const result = await contractService.cancelListingDetailed(token.onchainListingId as number)
+              const listingSnapshot = await contractService.getListingOnChain(result.listingId)
+              walletBalanceAfter = await contractService.getCarbonTokenBalance(
+                listingSnapshot.tokenId,
+                listingSnapshot.seller
+              )
+              txHash = result.txHash
+              onchainListingId = result.listingId
+              listedAmountAfter = listingSnapshot.availableAmount
+              isActiveOnChain = listingSnapshot.active
+              return result.txHash
+            },
+          })
+        } else if (token.onchainListingId) {
+          steps.push({
+            label: 'Cập nhật lệnh đăng bán trên blockchain',
+            run: async () => {
+              const result = await contractService.updateListingDetailed(token.onchainListingId as number, price, quantity)
+              const listingSnapshot = await contractService.getListingOnChain(result.listingId)
+              walletBalanceAfter = await contractService.getCarbonTokenBalance(
+                listingSnapshot.tokenId,
+                listingSnapshot.seller
+              )
+              txHash = result.txHash
+              onchainListingId = result.listingId
+              listedAmountAfter = listingSnapshot.availableAmount
+              isActiveOnChain = listingSnapshot.active
+              return result.txHash
+            },
+          })
+        } else {
+          steps.push({
+            label: 'Tạo lệnh đăng bán trên blockchain',
+            run: async () => {
+              const result = await contractService.createListingsBatchDetailed([
+                {
+                  tokenId: token.tokenId as number,
+                  pricePerUnit: price,
+                  amount: quantity,
+                },
+              ])
+              const listingSnapshot = await contractService.getListingOnChain(result.listingIds[0] as number)
+              walletBalanceAfter = await contractService.getCarbonTokenBalance(
+                listingSnapshot.tokenId,
+                listingSnapshot.seller
+              )
+              txHash = result.txHash
+              onchainListingId = result.listingIds[0] ?? null
+              listedAmountAfter = listingSnapshot.availableAmount
+              isActiveOnChain = listingSnapshot.active
+              return result.txHash
+            },
+          })
+        }
 
         const result = await txState.execute(steps)
         if (!result.success) {
-          setSaveError(txState.error || 'Khong the cap nhat lenh dang ban tren blockchain.')
+          setSaveError(txState.error || 'Không thể cập nhật lệnh đăng bán trên blockchain.')
           return
         }
-        txHash = result.txHash
+        txHash = result.txHash ?? txHash
       }
 
-      const success = await listingRepository.createListings(wallet.address, [
+      const success = await listingRepository.createListings(
+        wallet.address,
+        [
+          {
+            vintageId: token.vintageId,
+            quantity,
+            price,
+          },
+        ],
         {
-          vintageId: token.vintageId,
-          quantity,
-          price,
-        },
-      ])
+          [token.vintageId]: {
+            txHash,
+            onchainListingId,
+            walletBalanceAfter,
+            listedAmountAfter,
+            isActiveOnChain,
+          },
+        }
+      )
 
       if (!success) {
-        setSaveError(txHash ? 'Blockchain da cap nhat, nhung luu Supabase that bai.' : 'Khong the luu thay doi vao Supabase.')
+        setSaveError(txHash ? 'Blockchain đã cập nhật, nhưng lưu Supabase thất bại.' : 'Không thể lưu thay đổi vào Supabase.')
         return
       }
 
@@ -236,8 +306,8 @@ export default function SellerDetailPage() {
       })
       txState.reset()
     } catch (error) {
-      console.error('Loi cap nhat dang ban:', error)
-      setSaveError(error instanceof Error ? error.message : 'Cap nhat dang ban that bai.')
+      console.error('Lỗi cập nhật đăng bán:', error)
+      setSaveError(error instanceof Error ? error.message : 'Cập nhật đăng bán thất bại.')
     } finally {
       setSavingVintageId(null)
     }
@@ -278,32 +348,32 @@ export default function SellerDetailPage() {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <div className="rounded border border-gray-200 p-6">
-              <h2 className="mb-5 font-heading text-lg font-bold tracking-widest text-gray-700">THONG TIN DU AN</h2>
+              <h2 className="mb-5 font-heading text-lg font-bold tracking-widest text-gray-700">THÔNG TIN DỰ ÁN</h2>
 
               <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-                <Field label="MA DU AN" value={project.code} />
-                <Field label="TEN DU AN" value={project.name} />
+                <Field label="MÃ DỰ ÁN" value={project.code} />
+                <Field label="TÊN DỰ ÁN" value={project.name} />
               </div>
               <hr className="my-5 border-gray-100" />
 
-              <Field label="MO TA DU AN" value={project.description} />
+              <Field label="MÔ TẢ DỰ ÁN" value={project.description} />
               <hr className="my-5 border-gray-100" />
 
               <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-                <Field label="LINH VUC" value={project.domain} />
-                <Field label="VI TRI DU AN" value={project.location} />
+                <Field label="LĨNH VỰC" value={project.domain} />
+                <Field label="VỊ TRÍ DỰ ÁN" value={project.location} />
               </div>
               <hr className="my-5 border-gray-100" />
 
               <div className="grid grid-cols-2 gap-x-8 gap-y-5">
-                <Field label="THOI GIAN BAT DAU" value={project.startDate} />
-                <Field label="THOI GIAN KET THUC" value={project.endDate} />
+                <Field label="THỜI GIAN BẮT ĐẦU" value={project.startDate} />
+                <Field label="THỜI GIAN KẾT THÚC" value={project.endDate} />
               </div>
 
               <div className="mt-6 grid grid-cols-2 gap-4">
                 <div className="rounded border border-gray-200 bg-gray-50 p-4">
                   <div className="mb-1 font-heading text-xs font-bold tracking-widest text-gray-400">
-                    LUONG GIAM PHAT (TAN CO2)
+                    LƯỢNG GIẢM PHÁT (TẤN CO2)
                   </div>
                   <div className="font-heading text-3xl font-bold text-gray-900">
                     {project.co2Reduction.toLocaleString('vi-VN')}
@@ -312,7 +382,7 @@ export default function SellerDetailPage() {
                 </div>
                 <div className="rounded border border-gray-200 bg-gray-50 p-4">
                   <div className="mb-1 font-heading text-xs font-bold tracking-widest text-gray-400">
-                    SO LUONG TIN CHI CARBON
+                    SỐ LƯỢNG TÍN CHỈ CARBON
                   </div>
                   <div className="font-heading text-3xl font-bold text-gray-900">
                     {project.tokenCount.toLocaleString('vi-VN')}
@@ -326,13 +396,13 @@ export default function SellerDetailPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="px-5 py-3 text-left font-heading text-xs font-bold tracking-widest text-gray-400">NAM</th>
+                    <th className="px-5 py-3 text-left font-heading text-xs font-bold tracking-widest text-gray-400">NĂM</th>
                     <th className="px-5 py-3 text-left font-heading text-xs font-bold tracking-widest text-gray-400">TOKEN ID</th>
-                    <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">HIEN CO</th>
-                    <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">DANG BAN</th>
-                    <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">DA BAN</th>
-                    <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">GIA</th>
-                    <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">THAO TAC</th>
+                    <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">HIỆN CÓ</th>
+                    <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">ĐANG BÁN</th>
+                    <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">ĐÃ BÁN</th>
+                    <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">GIÁ</th>
+                    <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">THAO TÁC</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -346,19 +416,28 @@ export default function SellerDetailPage() {
                       <tr key={token.vintageId} className="border-b border-gray-50 align-top last:border-0 hover:bg-gray-50">
                         <td className="px-5 py-4 text-sm text-gray-700">{token.year}</td>
                         <td className="px-5 py-4 font-mono text-xs text-gray-600">{token.tokenId}</td>
-                        <td className="px-5 py-4 text-center font-bold text-gray-900">{token.quantity}</td>
+                        <td className="px-5 py-4 text-center font-bold text-gray-900">{token.available}</td>
                         <td className="px-5 py-4 text-center">
                           {isEditing ? (
-                            <div className="mx-auto max-w-[112px]">
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                value={draft.quantity}
-                                onChange={(event) => updateDraft(token.vintageId as number, 'quantity', event.target.value)}
-                                className={`w-full rounded border px-3 py-2 text-center text-sm outline-none transition-colors ${
-                                  errors.quantity ? 'border-red-300 bg-red-50 text-red-700' : 'border-gray-300 focus:border-green-500'
-                                }`}
-                              />
+                            <div className="mx-auto max-w-[220px]">
+                              <div className="mb-2 grid grid-cols-2 gap-2 text-[11px] text-gray-500">
+                                <span>Đang bán hiện tại</span>
+                                <span>Nhập mới</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-center text-sm font-semibold text-gray-700">
+                                  {token.listedAmount || 0}
+                                </div>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={draft.quantity}
+                                  onChange={(event) => updateDraft(token.vintageId as number, 'quantity', event.target.value)}
+                                  className={`w-full rounded border px-3 py-2 text-center text-sm outline-none transition-colors ${
+                                    errors.quantity ? 'border-red-300 bg-red-50 text-red-700' : 'border-gray-300 focus:border-green-500'
+                                  }`}
+                                />
+                              </div>
                               {errors.quantity ? <p className="mt-1 text-left text-xs text-red-600">{errors.quantity}</p> : null}
                             </div>
                           ) : (
@@ -368,16 +447,25 @@ export default function SellerDetailPage() {
                         <td className="px-5 py-4 text-center font-bold text-gray-900">{token.soldAmount || 0}</td>
                         <td className="px-5 py-4 text-center">
                           {isEditing ? (
-                            <div className="mx-auto max-w-[128px]">
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={draft.price}
-                                onChange={(event) => updateDraft(token.vintageId as number, 'price', event.target.value)}
-                                className={`w-full rounded border px-3 py-2 text-center text-sm outline-none transition-colors ${
-                                  errors.price ? 'border-red-300 bg-red-50 text-red-700' : 'border-gray-300 focus:border-green-500'
-                                }`}
-                              />
+                            <div className="mx-auto max-w-[250px]">
+                              <div className="mb-2 grid grid-cols-2 gap-2 text-[11px] text-gray-500">
+                                <span>Giá hiện tại</span>
+                                <span>Nhập mới</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-center text-sm font-semibold text-gray-700">
+                                  {formatPrice(token.price)}
+                                </div>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={draft.price}
+                                  onChange={(event) => updateDraft(token.vintageId as number, 'price', event.target.value)}
+                                  className={`w-full rounded border px-3 py-2 text-center text-sm outline-none transition-colors ${
+                                    errors.price ? 'border-red-300 bg-red-50 text-red-700' : 'border-gray-300 focus:border-green-500'
+                                  }`}
+                                />
+                              </div>
                               {errors.price ? <p className="mt-1 text-left text-xs text-red-600">{errors.price}</p> : null}
                             </div>
                           ) : (
@@ -444,7 +532,7 @@ export default function SellerDetailPage() {
 
             {editingVintageId ? (
               <div className="mt-4 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Neu day la lan dau dung vi nay de dang ban, MetaMask co the yeu cau xac nhan 2 giao dich: cap quyen cho Marketplace va cap nhat lenh dang ban.
+                Nếu đây là lần đầu dùng ví này để đăng bán, MetaMask có thể yêu cầu xác nhận 2 giao dịch: cấp quyền cho Marketplace và cập nhật lệnh đăng bán.
               </div>
             ) : null}
 

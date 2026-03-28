@@ -2,6 +2,8 @@ import { BaseRepository } from './BaseRepository'
 import type { ListingDB } from '../types/database.types'
 import type { Project } from '../types'
 import { projectRepository } from './ProjectRepository'
+import { isContractConfigured } from '../contracts/contractConfig'
+import * as contractService from '../services/contractService'
 
 export interface MarketplaceItem {
   project: Project
@@ -16,9 +18,33 @@ export interface MarketplaceItem {
   sellerWalletAddress: string
 }
 
+export interface ListingSyncItem {
+  vintageId: number
+  quantity: number
+  price: number
+}
+
+export interface ListingSyncMetadata {
+  txHash?: string | null
+  onchainListingId?: number | null
+  walletBalanceAfter?: number | null
+  listedAmountAfter?: number | null
+  isActiveOnChain?: boolean | null
+}
+
 export class ListingRepository extends BaseRepository<ListingDB> {
   constructor() {
     super('LISTINGS')
+  }
+
+  private throwDetailedError(message: string, error: any, context?: Record<string, unknown>): never {
+    console.error(message, {
+      error,
+      context,
+    })
+
+    const details = [error?.message, error?.details, error?.hint].filter(Boolean).join(' | ')
+    throw new Error(details ? `${message}: ${details}` : message)
   }
 
   async getActiveListings(): Promise<MarketplaceItem[]> {
@@ -55,6 +81,13 @@ export class ListingRepository extends BaseRepository<ListingDB> {
     for (const listing of data as any[]) {
       const vintage = listing.PROJECT_VINTAGES
       if (!vintage || vintage.status !== 'MINTED') continue
+      if (!vintage.token_id) {
+        console.warn('Skip listing because PROJECT_VINTAGES.token_id is missing', {
+          listingId: listing.listing_id,
+          projectVintageId: vintage.project_vintage_id,
+        })
+        continue
+      }
 
       const projectData = vintage.PROJECTS
       if (!projectData) continue
@@ -77,7 +110,11 @@ export class ListingRepository extends BaseRepository<ListingDB> {
     return items
   }
 
-  async createListings(walletAddress: string, items: { vintageId: number; quantity: number; price: number }[]): Promise<boolean> {
+  async createListings(
+    walletAddress: string,
+    items: ListingSyncItem[],
+    metadataByVintageId?: Record<number, ListingSyncMetadata>
+  ): Promise<boolean> {
     const { data: walletData, error: walletError } = await this.client
       .from('WALLETS')
       .select('wallet_id')
@@ -85,8 +122,7 @@ export class ListingRepository extends BaseRepository<ListingDB> {
       .single()
 
     if (walletError || !walletData) {
-      console.error('Wallet not found or not connected', walletError)
-      return false
+      this.throwDetailedError('Wallet not found or not connected', walletError, { walletAddress })
     }
 
     const sellerWalletId = Number(walletData.wallet_id)
@@ -94,21 +130,28 @@ export class ListingRepository extends BaseRepository<ListingDB> {
 
     const { data: existingListings, error: existingListingsError } = await this.client
       .from('LISTINGS')
-      .select('listing_id, project_vintage_id, listed_amount')
+      .select('listing_id, project_vintage_id, listed_amount, price_per_unit, onchain_listing_id')
       .eq('seller_wallet_id', sellerWalletId)
       .eq('listing_status', 'ACTIVE')
       .in('project_vintage_id', vintageIds)
 
     if (existingListingsError) {
-      console.error('Error loading active listings:', existingListingsError)
-      return false
+      this.throwDetailedError('Error loading active listings', existingListingsError, {
+        sellerWalletId,
+        vintageIds,
+      })
     }
 
     const restoredAmounts = new Map<number, number>()
+    const activeListingByVintageId = new Map<number, any>()
     for (const listing of (existingListings as any[]) || []) {
       const vintageId = Number(listing.project_vintage_id)
       const amount = Number(listing.listed_amount || 0)
       restoredAmounts.set(vintageId, (restoredAmounts.get(vintageId) || 0) + amount)
+      const existing = activeListingByVintageId.get(vintageId)
+      if (!existing || Number(existing.listing_id || 0) < Number(listing.listing_id || 0)) {
+        activeListingByVintageId.set(vintageId, listing)
+      }
     }
 
     const { data: balances, error: balancesError } = await this.client
@@ -118,8 +161,10 @@ export class ListingRepository extends BaseRepository<ListingDB> {
       .in('project_vintage_id', vintageIds)
 
     if (balancesError) {
-      console.error('Error loading token balances:', balancesError)
-      return false
+      this.throwDetailedError('Error loading token balances', balancesError, {
+        sellerWalletId,
+        vintageIds,
+      })
     }
 
     const balanceByVintageId = new Map<number, any>()
@@ -132,60 +177,162 @@ export class ListingRepository extends BaseRepository<ListingDB> {
       const currentAmount = Number(balance?.current_amount || 0)
       const restored = restoredAmounts.get(item.vintageId) || 0
       const totalOwned = currentAmount + restored
-
-      if (!balance || totalOwned < item.quantity) {
-        console.error('Insufficient balance for listing update', { item, currentAmount, restored })
-        return false
-      }
-    }
-
-    if ((existingListings as any[])?.length) {
-      const { error: deactivateError } = await this.client
-        .from('LISTINGS')
-        .update({
-          listing_status: 'INACTIVE',
-        })
-        .eq('seller_wallet_id', sellerWalletId)
-        .eq('listing_status', 'ACTIVE')
-        .in('project_vintage_id', vintageIds)
-
-      if (deactivateError) {
-        console.error('Error deactivating old listings:', deactivateError)
-        return false
+      if (!balance || item.quantity < 0 || totalOwned < item.quantity) {
+        throw new Error(
+          `Insufficient balance for listing update: vintageId=${item.vintageId}, current=${currentAmount}, restored=${restored}, requested=${item.quantity}`
+        )
       }
     }
 
     for (const item of items) {
+      const nextListingStatus = item.quantity === 0 ? 'CANCELLED' : 'INACTIVE'
+      const currentListing = activeListingByVintageId.get(item.vintageId)
+      const metadata = metadataByVintageId?.[item.vintageId]
+      const effectiveOnchainListingId = metadata?.onchainListingId ?? currentListing?.onchain_listing_id ?? null
+      let effectiveListedAmountAfter = metadata?.listedAmountAfter ?? null
+      let effectiveIsActiveOnChain = metadata?.isActiveOnChain ?? null
+      let insertedListingId: number | null = null
+
+      if (isContractConfigured() && effectiveOnchainListingId) {
+        try {
+          const listingSnapshot = await contractService.getListingOnChain(Number(effectiveOnchainListingId))
+          effectiveListedAmountAfter = listingSnapshot.availableAmount
+          effectiveIsActiveOnChain = listingSnapshot.active
+        } catch (onchainError) {
+          console.error('Error refreshing on-chain listing snapshot before DB sync', {
+            onchainError,
+            vintageId: item.vintageId,
+            effectiveOnchainListingId,
+          })
+        }
+      }
+
+      if (currentListing) {
+        const { error: deactivateError } = await this.client
+          .from('LISTINGS')
+          .update({
+            listing_status: nextListingStatus,
+          })
+          .eq('listing_id', currentListing.listing_id)
+
+        if (deactivateError) {
+          this.throwDetailedError('Error updating previous listing status', deactivateError, {
+            sellerWalletId,
+            vintageId: item.vintageId,
+            listingId: currentListing.listing_id,
+            nextListingStatus,
+          })
+        }
+      }
+
       const balance = balanceByVintageId.get(item.vintageId)
       const restored = restoredAmounts.get(item.vintageId) || 0
       const totalOwned = Number(balance.current_amount || 0) + restored
-
-      const { error: restoreError } = await this.client
-        .from('TOKEN_BALANCES')
-        .update({
-          current_amount: totalOwned - item.quantity,
-        })
-        .eq('balance_id', balance.balance_id)
-
-      if (restoreError) {
-        console.error('Error updating token balance after listing:', restoreError)
-        return false
+      const projectedNextBalance = totalOwned - item.quantity
+      if (projectedNextBalance < 0) {
+        throw new Error(
+          `Insufficient DB balance before activity log insert: vintageId=${item.vintageId}, totalOwned=${totalOwned}, requested=${item.quantity}`
+        )
       }
-    }
 
-    const payload = items.map((item) => ({
-      project_vintage_id: item.vintageId,
-      seller_wallet_id: sellerWalletId,
-      price_per_unit: item.price,
-      listed_amount: item.quantity,
-      listing_status: 'ACTIVE',
-    }))
+      const previousListedAmount = restoredAmounts.get(item.vintageId) || 0
+      const deltaAmount = previousListedAmount - item.quantity
+      const previousPrice = currentListing ? Number(currentListing.price_per_unit || 0) : 0
+      let referenceId = currentListing ? Number(currentListing.listing_id) : null
+      let referenceType: 'LISTING' | 'UNLIST' = item.quantity < previousListedAmount ? 'UNLIST' : 'LISTING'
 
-    const { error } = await this.client.from('LISTINGS').insert(payload)
+      if (item.quantity > 0) {
+        const timestamp = new Date().toISOString()
+        const payload = {
+          project_vintage_id: item.vintageId,
+          seller_wallet_id: sellerWalletId,
+          price_per_unit: item.price,
+          listed_amount:
+            typeof effectiveListedAmountAfter === 'number' ? effectiveListedAmountAfter : item.quantity,
+          listing_status: effectiveIsActiveOnChain === false ? 'SOLD_OUT' : 'ACTIVE',
+          listing_tx_hash: metadata?.txHash ?? null,
+          onchain_listing_id: effectiveOnchainListingId,
+          created_at: timestamp,
+          updated_at: timestamp,
+        }
 
-    if (error) {
-      console.error('Error inserting listings data into database:', error)
-      return false
+        const { data: insertedListing, error: insertError } = await this.client
+          .from('LISTINGS')
+          .insert(payload)
+          .select('listing_id')
+          .single()
+
+        if (insertError) {
+          this.throwDetailedError('Error inserting listings data into database', insertError, payload)
+        }
+
+        insertedListingId = Number(insertedListing.listing_id)
+        referenceId = insertedListingId
+        referenceType = 'LISTING'
+      }
+
+      const shouldWriteActivity =
+        deltaAmount !== 0 || previousListedAmount !== item.quantity || previousPrice !== item.price
+      if (shouldWriteActivity) {
+        const activityPayload = {
+          wallet_id: sellerWalletId,
+          project_vintage_id: item.vintageId,
+          activity_type: 'LIST',
+          delta_amount: deltaAmount,
+          reference_id: referenceId,
+          reference_type: referenceType,
+        }
+
+        const { error: activityError } = await this.client
+          .from('TOKEN_ACTIVITY_LOGS')
+          .insert(activityPayload)
+
+        if (activityError) {
+          this.throwDetailedError('Error inserting token activity log', activityError, activityPayload)
+        }
+      }
+
+      if (isContractConfigured()) {
+        try {
+          let finalListedAmount: number | null = null
+          let finalListingStatus: string | null = null
+
+          if (effectiveOnchainListingId) {
+            const listingSnapshot = await contractService.getListingOnChain(Number(effectiveOnchainListingId))
+            finalListedAmount = listingSnapshot.availableAmount
+            finalListingStatus = listingSnapshot.active ? 'ACTIVE' : item.quantity === 0 ? 'CANCELLED' : 'SOLD_OUT'
+          }
+
+          // TOKEN_BALANCES is updated by DB trigger when writing TOKEN_ACTIVITY_LOGS.
+          // Do not manually update TOKEN_BALANCES here to avoid double updates.
+
+          if (insertedListingId && typeof finalListedAmount === 'number') {
+            const { error: finalListingError } = await this.client
+              .from('LISTINGS')
+              .update({
+                listed_amount: finalListedAmount,
+                listing_status: finalListingStatus ?? 'ACTIVE',
+              })
+              .eq('listing_id', insertedListingId)
+
+            if (finalListingError) {
+              console.error('Error finalizing listing from on-chain', {
+                finalListingError,
+                listingId: insertedListingId,
+                vintageId: item.vintageId,
+                finalListedAmount,
+                finalListingStatus,
+              })
+            }
+          }
+        } catch (finalizeError) {
+          console.error('Error reconciling seller DB state from on-chain after listing sync', {
+            finalizeError,
+            vintageId: item.vintageId,
+            effectiveOnchainListingId,
+          })
+        }
+      }
     }
 
     return true

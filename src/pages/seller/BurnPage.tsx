@@ -207,8 +207,8 @@ export default function BurnPage() {
                         const [projectId, yearStr] = key.split('-');
                         const proj = filtered.find(p => p.id === projectId);
                         const token = proj?.tableTokens.find(t => t.year === Number(yearStr));
-                        if (token?.vintageId) {
-                          tokenIds.push(token.vintageId); // tokenId = project_vintage_id
+                        if (token?.tokenId) {
+                          tokenIds.push(token.tokenId);
                           amounts.push(qty);
                         }
                       }
