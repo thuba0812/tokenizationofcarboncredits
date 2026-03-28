@@ -176,16 +176,16 @@ async function main() {
 
     // Approve marketplace for CarbonToken
     const carbonTokenAsSeller = CarbonToken.connect(sellerSigner);
-    const isApproved = await carbonTokenAsSeller.isApprovedForAll(sellerAddress, MARKETPLACE_ADDRESS);
+    const isApproved = await (carbonTokenAsSeller as any).isApprovedForAll(sellerAddress, MARKETPLACE_ADDRESS);
     if (!isApproved) {
       console.log(`      🔑 Approving marketplace...`);
-      const approveTx = await carbonTokenAsSeller.setApprovalForAll(MARKETPLACE_ADDRESS, true);
+      const approveTx = await (carbonTokenAsSeller as any).setApprovalForAll(MARKETPLACE_ADDRESS, true);
       await approveTx.wait();
     }
 
     // Create listing on marketplace
     const marketplaceAsSeller = Marketplace.connect(sellerSigner);
-    const tx = await marketplaceAsSeller.createListing(tokenId, price, amount);
+    const tx = await (marketplaceAsSeller as any).createListing(tokenId, price, amount);
     const receipt = await tx.wait();
     
     // Get the on-chain listing ID from the event

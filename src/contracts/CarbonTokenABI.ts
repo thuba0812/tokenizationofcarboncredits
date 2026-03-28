@@ -32,9 +32,25 @@ export const CarbonTokenABI = [
     inputs: [
       { internalType: 'uint256[]', name: 'tokenIds', type: 'uint256[]' },
       { internalType: 'uint256[]', name: 'amounts', type: 'uint256[]' },
-      { internalType: 'uint256', name: 'allowedQuota', type: 'uint256' },
     ],
     name: 'burnCarbonBatch',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: 'enterprise', type: 'address' }],
+    name: 'enterpriseQuotas',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'enterprise', type: 'address' },
+      { internalType: 'uint256', name: 'quota', type: 'uint256' },
+    ],
+    name: 'setEnterpriseQuota',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',

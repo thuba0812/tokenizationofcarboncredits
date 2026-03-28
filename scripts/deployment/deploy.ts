@@ -53,7 +53,7 @@ async function main() {
   console.log("========================================\n");
 
   // Auto-update contractConfig.ts
-  const configPath = path.join(__dirname, "..", "src", "contracts", "contractConfig.ts");
+  const configPath = path.join(__dirname, "..", "..", "src", "contracts", "contractConfig.ts");
   
   if (fs.existsSync(configPath)) {
     let configContent = fs.readFileSync(configPath, "utf-8");

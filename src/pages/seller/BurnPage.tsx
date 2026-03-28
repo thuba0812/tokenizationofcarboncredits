@@ -33,17 +33,17 @@ export default function BurnPage() {
 
   useEffect(() => {
     async function fetchTotalBurned() {
-      if (wallet.address && isContractConfigured()) {
+      if (organizationId) {
         try {
-          const burned = await contractService.getTotalEnterpriseBurned(wallet.address)
+          const burned = await portfolioRepository.getTotalRetiredAmount(organizationId)
           setTotalBurned(burned)
         } catch (e) {
-          console.error("Failed to fetch total burned", e)
+          console.error("Failed to fetch total burned from DB", e)
         }
       }
     }
     fetchTotalBurned()
-  }, [wallet.address])
+  }, [organizationId])
 
   const quota = allocatedQuota
   const maxBurn = quota * 0.1
@@ -252,7 +252,7 @@ export default function BurnPage() {
                         {
                           label: 'Tiêu hủy token trên blockchain',
                           run: async () => {
-                            const hash = await contractService.burnCarbonBatch(tokenIds, amounts, maxBurn);
+                            const hash = await contractService.burnCarbonBatch(tokenIds, amounts);
                             localTxHash = hash;
                             return hash;
                           }
@@ -284,6 +284,8 @@ export default function BurnPage() {
 
                         setShowConfirmBurn(false);
                         setShowSuccessBurn(true);
+                        // Refresh total burned count locally
+                        setTotalBurned(prev => prev + totalSelected);
                       }
                       // Nếu lỗi, txState.error sẽ hiển thị
                     } else {

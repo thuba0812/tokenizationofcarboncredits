@@ -229,14 +229,13 @@ export async function buyByProject(
  */
 export async function burnCarbonBatch(
   tokenIds: number[],
-  amounts: number[],
-  allowedQuota: number
+  amounts: number[]
 ): Promise<string> {
   assertConfigured();
   const signer = await getSigner();
   const carbonToken = getCarbonTokenContract(signer);
 
-  const tx = await carbonToken.burnCarbonBatch(tokenIds, amounts, allowedQuota);
+  const tx = await carbonToken.burnCarbonBatch(tokenIds, amounts);
   const receipt = await tx.wait();
   return receipt.hash;
 }
@@ -344,6 +343,29 @@ export async function getTotalEnterpriseBurned(address: string): Promise<number>
   const carbonToken = getCarbonTokenContract(provider);
   const burned = await carbonToken.totalEnterpriseBurned(address);
   return Number(burned);
+}
+
+/**
+ * Lấy hạn ngạch của enterprise từ chain
+ */
+export async function getEnterpriseQuota(address: string): Promise<number> {
+  assertConfigured();
+  const provider = getProvider();
+  const carbonToken = getCarbonTokenContract(provider);
+  const quota = await carbonToken.enterpriseQuotas(address);
+  return Number(quota);
+}
+
+/**
+ * Admin thiết lập hạn ngạch cho enterprise trên chain
+ */
+export async function setEnterpriseQuota(address: string, quota: number): Promise<string> {
+  assertConfigured();
+  const signer = await getSigner();
+  const carbonToken = getCarbonTokenContract(signer);
+  const tx = await carbonToken.setEnterpriseQuota(address, quota);
+  const receipt = await tx.wait();
+  return receipt.hash;
 }
 
 /**

@@ -96,9 +96,9 @@ async function main() {
     console.log(`\n📦 Found ${listings.length} ACTIVE listings. Max DB ID is ${maxListingId}. Aligning on-chain state...`);
 
     // Prepare deployer for dummy padding
-    const isDeployerApproved = await CarbonToken.isApprovedForAll(deployer.address, MARKETPLACE_ADDRESS);
+    const isDeployerApproved = await (CarbonToken as any).isApprovedForAll(deployer.address, MARKETPLACE_ADDRESS);
     if (!isDeployerApproved) {
-      await (await CarbonToken.setApprovalForAll(MARKETPLACE_ADDRESS, true)).wait();
+      await (await (CarbonToken as any).setApprovalForAll(MARKETPLACE_ADDRESS, true)).wait();
     }
 
     let currentNext = Number(await Marketplace.nextListingId());
@@ -119,11 +119,11 @@ async function main() {
           const sellerSigner = await hre.ethers.getSigner(sellerAddress);
           
           const carbonTokenAsSeller = CarbonToken.connect(sellerSigner);
-          if (!(await carbonTokenAsSeller.isApprovedForAll(sellerAddress, MARKETPLACE_ADDRESS))) {
-            await (await carbonTokenAsSeller.setApprovalForAll(MARKETPLACE_ADDRESS, true)).wait();
+          if (!(await (carbonTokenAsSeller as any).isApprovedForAll(sellerAddress, MARKETPLACE_ADDRESS))) {
+            await (await (carbonTokenAsSeller as any).setApprovalForAll(MARKETPLACE_ADDRESS, true)).wait();
           }
 
-          const tx = await Marketplace.connect(sellerSigner).createListing(tokenId, price, amount);
+          const tx = await (Marketplace as any).connect(sellerSigner).createListing(tokenId, price, amount);
           await tx.wait();
           console.log(`   ✅ REAL Created on-chain ID: ${targetId} matches DB listing_id ${l.listing_id} (Token: ${tokenId}, Seller: ${sellerAddress.slice(0, 6)}...)`);
           
