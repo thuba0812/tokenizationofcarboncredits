@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, AlertTriangle, RotateCcw, Trash2, Check, ShieldCheck, Loader2 } from 'lucide-react'
 import Footer from '../../components/Footer'
@@ -10,6 +10,7 @@ import * as contractService from '../../services/contractService'
 import { isContractConfigured } from '../../contracts/contractConfig'
 import { portfolioRepository } from '../../repositories/PortfolioRepository'
 import IPFSAutoUploader from '../../components/IPFSAutoUploader'
+import { useCarbonQuota } from '../../hooks/useCarbonQuota'
 
 export default function BurnPage() {
   const navigate = useNavigate()
@@ -24,11 +25,28 @@ export default function BurnPage() {
   const [lastBurntItems, setLastBurntItems] = useState<{ project: any, qty: number, creditCode: string }[]>([])
   const txState = useContractTransaction()
 
-  const quota = 125000
-  const maxBurn = 12500
-
-  const { walletId, loading: identityLoading } = useWalletIdentity(wallet.address)
+  const { walletId, organizationId, loading: identityLoading } = useWalletIdentity(wallet.address)
+  const { allocatedQuota, loading: quotaLoading } = useCarbonQuota(organizationId)
   const { credits, loading: portfolioLoading } = usePortfolio(walletId ?? 0)
+
+  const [totalBurned, setTotalBurned] = useState<number>(0)
+
+  useEffect(() => {
+    async function fetchTotalBurned() {
+      if (wallet.address && isContractConfigured()) {
+        try {
+          const burned = await contractService.getTotalEnterpriseBurned(wallet.address)
+          setTotalBurned(burned)
+        } catch (e) {
+          console.error("Failed to fetch total burned", e)
+        }
+      }
+    }
+    fetchTotalBurned()
+  }, [wallet.address])
+
+  const quota = allocatedQuota
+  const maxBurn = quota * 0.1
 
   const userProjects = credits.reduce<typeof credits[number]['project'][]>((acc, item) => {
     const existing = acc.find((project) => project.id === item.project.id)
@@ -46,7 +64,7 @@ export default function BurnPage() {
     return acc
   }, [])
 
-  const loading = identityLoading || portfolioLoading
+  const loading = identityLoading || portfolioLoading || quotaLoading
 
   const filtered = userProjects.filter(p =>
     p.code.toLowerCase().includes(search.toLowerCase()) ||
@@ -134,7 +152,7 @@ export default function BurnPage() {
 
               <div className="w-full bg-gray-50 rounded-md border-l-4 border-green-700 p-6 mb-8 text-left">
                 <p className="text-sm text-gray-700 mb-4">
-                  <span className="font-bold">Luật:</span> Số token burn không được quá 10% hạn ngạch dự án.
+                  <span className="font-bold">Luật:</span> Tổng lượng token tiêu hủy (hiện tại + trước đây) không được vượt quá 10% hạn ngạch. Bạn đã tiêu hủy <span className="font-bold text-red-600">{totalBurned.toLocaleString('en-US')}</span> token.
                 </p>
                 <div className="flex justify-between gap-4">
                   <div>
@@ -208,7 +226,8 @@ export default function BurnPage() {
                         const proj = filtered.find(p => p.id === projectId);
                         const token = proj?.tableTokens.find(t => t.year === Number(yearStr));
                         if (token?.vintageId) {
-                          tokenIds.push(token.vintageId); // tokenId = project_vintage_id
+                          const onChainId = token.tokenId ? Number(token.tokenId) : token.vintageId;
+                          tokenIds.push(onChainId);
                           amounts.push(qty);
                         }
                       }
@@ -584,9 +603,18 @@ export default function BurnPage() {
 
             {/* Max burn */}
             <div className="flex flex-col flex-1 pl-6">
-              <div className="font-heading font-bold text-xs tracking-widest text-[#1b5e20] mb-1">MAX BURN (TỐI ĐA)</div>
+              <div className="font-heading font-bold text-xs tracking-widest text-[#1b5e20] mb-1">MAX BURN (10%)</div>
               <div className="font-heading font-bold text-4xl text-[#1b5e20]">{maxBurn.toLocaleString()}</div>
               <div className="text-xs text-[#1b5e20] mt-1 uppercase text-[10px] font-bold">tCO2e</div>
+            </div>
+
+            <div className="w-px h-16 bg-gray-200"></div>
+
+            {/* Đã tiêu hủy */}
+            <div className="flex flex-col flex-1 pl-6">
+              <div className="font-heading font-bold text-xs tracking-widest text-red-600 mb-1">ĐÃ TIÊU HỦY</div>
+              <div className="font-heading font-bold text-4xl text-red-600">{totalBurned.toLocaleString()}</div>
+              <div className="text-xs text-red-600 mt-1 uppercase text-[10px] font-bold">tCO2e</div>
             </div>
 
             <div className="w-px h-16 bg-gray-200"></div>
@@ -594,7 +622,7 @@ export default function BurnPage() {
             {/* Tổng tiêu hủy */}
             <div className="flex flex-1 items-center gap-6 pl-6">
               <div className="flex flex-col items-end text-right">
-                <span className="font-heading font-bold text-sm tracking-widest text-gray-600 uppercase">TỔNG TIÊU HỦY</span>
+                <span className="font-heading font-bold text-sm tracking-widest text-gray-600 uppercase">ĐANG CHỌN</span>
                 <span className="text-[10px] font-bold text-gray-400 uppercase">({Object.keys(selectedTokens).length} TOKEN):</span>
               </div>
               <div className="flex flex-col">
@@ -613,7 +641,7 @@ export default function BurnPage() {
               <button
                 disabled={totalSelected === 0}
                 onClick={() => {
-                  if (totalSelected > maxBurn) {
+                  if (totalSelected + totalBurned > maxBurn) {
                     setShowWarning(true)
                   } else {
                     setShowConfirmBurn(true)

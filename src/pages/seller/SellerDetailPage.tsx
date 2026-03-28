@@ -199,7 +199,7 @@ export default function SellerDetailPage() {
           run: () =>
             contractService.createListingsBatch([
               {
-                tokenId: token.vintageId as number,
+                tokenId: token.tokenId as number,
                 pricePerUnit: price,
                 amount: quantity,
               },

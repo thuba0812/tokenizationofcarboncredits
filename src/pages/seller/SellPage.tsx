@@ -168,7 +168,7 @@ export default function SellPage() {
       }))
 
       const onChainItems = selectedRows.map((row) => ({
-        tokenId: row.vintageId,
+        tokenId: row.tokenId,
         pricePerUnit: parseDecimal(getPriceInput(row)).value,
         amount: parseWholeNumber(getQuantityInput(row)).value,
       }))

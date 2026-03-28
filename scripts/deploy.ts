@@ -60,16 +60,16 @@ async function main() {
     
     // Replace placeholder addresses
     configContent = configContent.replace(
-      /export const CARBON_TOKEN_ADDRESS = '0x[0-9a-fA-F]+';/,
-      `export const CARBON_TOKEN_ADDRESS = '${carbonTokenAddress}';`
+      /export const CARBON_TOKEN_ADDRESS(: string)? = '0x[0-9a-fA-F]+';/,
+      `export const CARBON_TOKEN_ADDRESS: string = '${carbonTokenAddress}';`
     );
     configContent = configContent.replace(
-      /export const MOCK_USDT_ADDRESS = '0x[0-9a-fA-F]+';/,
-      `export const MOCK_USDT_ADDRESS = '${mockUSDTAddress}';`
+      /export const MOCK_USDT_ADDRESS(: string)? = '0x[0-9a-fA-F]+';/,
+      `export const MOCK_USDT_ADDRESS: string = '${mockUSDTAddress}';`
     );
     configContent = configContent.replace(
-      /export const MARKETPLACE_ADDRESS = '0x[0-9a-fA-F]+';/,
-      `export const MARKETPLACE_ADDRESS = '${marketplaceAddress}';`
+      /export const MARKETPLACE_ADDRESS(: string)? = '0x[0-9a-fA-F]+';/,
+      `export const MARKETPLACE_ADDRESS: string = '${marketplaceAddress}';`
     );
     
     fs.writeFileSync(configPath, configContent);
