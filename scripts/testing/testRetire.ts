@@ -1,4 +1,4 @@
-import { portfolioRepository } from "../src/repositories/PortfolioRepository";
+import { portfolioRepository } from "../../src/repositories/PortfolioRepository";
 import { createClient } from "@supabase/supabase-js";
 
 // Manually injecting client since script runs outside React context

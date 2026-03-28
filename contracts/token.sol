@@ -32,6 +32,7 @@ contract CarbonToken is ERC1155, Ownable {
     mapping(bytes32 => bool) private _usedCidHashes;
 
     mapping(address => uint256) public totalEnterpriseBurned;
+    mapping(address => uint256) public enterpriseQuotas;
 
     event CarbonMinted(
         address indexed recipient,
@@ -246,8 +247,7 @@ contract CarbonToken is ERC1155, Ownable {
      */
     function burnCarbonBatch(
         uint256[] calldata tokenIds,
-        uint256[] calldata amounts,
-        uint256 allowedQuota
+        uint256[] calldata amounts
     ) external {
         uint256 length = tokenIds.length;
         require(length == amounts.length, "Mismatch input lengths");
@@ -262,10 +262,17 @@ contract CarbonToken is ERC1155, Ownable {
             totalToBurn += amounts[i];
         }
 
-        require(
-            totalEnterpriseBurned[msg.sender] + totalToBurn <= allowedQuota,
-            "Exceeds enterprise quota"
-        );
+        // Quota check removed per user request:
+        // uint256 quota = enterpriseQuotas[msg.sender];
+        // require(quota > 0, "No quota assigned");
+        // 
+        // // Rule: Total burned <= 10% of Allocated Quota
+        // uint256 maxAllowedBurn = quota / 10; 
+        // 
+        // require(
+        //     totalEnterpriseBurned[msg.sender] + totalToBurn <= maxAllowedBurn,
+        //     "Exceeds 10% enterprise quota rule"
+        // );
 
         _burnBatch(msg.sender, tokenIds, amounts);
         totalEnterpriseBurned[msg.sender] += totalToBurn;
@@ -280,8 +287,16 @@ contract CarbonToken is ERC1155, Ownable {
             tokenIds,
             amounts,
             totalToBurn,
-            allowedQuota - totalEnterpriseBurned[msg.sender]
+            0 // Quota feature removed
         );
+    }
+
+    /**
+     * @dev Sets the allocated quota (Hạn ngạch gốc) for an enterprise.
+     * Only owner (Regulatory Agency) can call this.
+     */
+    function setEnterpriseQuota(address enterprise, uint256 quota) external onlyOwner {
+        enterpriseQuotas[enterprise] = quota;
     }
 
     function tokenExists(uint256 tokenId) external view returns (bool) {

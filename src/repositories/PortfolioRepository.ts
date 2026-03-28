@@ -227,6 +227,30 @@ export class PortfolioRepository extends BaseRepository<any> {
     return certs
   }
 
+  async getTotalRetiredAmount(organizationId: number): Promise<number> {
+    const { data, error } = await this.client
+      .from('RETIREMENTS')
+      .select(`
+        RETIREMENT_DETAILS (
+          retired_amount
+        )
+      `)
+      .eq('organization_id', organizationId)
+
+    if (error) {
+      console.error('Error fetching total retired amount:', error)
+      return 0
+    }
+
+    let total = 0
+    for (const ret of data as any[]) {
+      for (const det of ret.RETIREMENT_DETAILS || []) {
+        total += Number(det.retired_amount || 0)
+      }
+    }
+    return total
+  }
+
   async retireTokens(walletAddress: string, items: { vintageId: number; quantity: number }[], txHash: string): Promise<number | null> {
     const { data: walletData, error: walletError } = await this.client
       .from('WALLETS')

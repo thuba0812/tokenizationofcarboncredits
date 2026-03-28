@@ -1,10 +1,6 @@
-import hre from "hardhat";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const hre = require("hardhat");
+const fs = require("fs");
+const path = require("path");
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
@@ -60,15 +56,15 @@ async function main() {
     
     // Replace placeholder addresses
     configContent = configContent.replace(
-      /export const CARBON_TOKEN_ADDRESS\s*(?::\s*string)?\s*=\s*'0x[0-9a-fA-F]+';/,
+      /export const CARBON_TOKEN_ADDRESS(?: *: *string)? *= *'0x[0-9a-fA-F]+';/g,
       `export const CARBON_TOKEN_ADDRESS: string = '${carbonTokenAddress}';`
     );
     configContent = configContent.replace(
-      /export const MOCK_USDT_ADDRESS\s*(?::\s*string)?\s*=\s*'0x[0-9a-fA-F]+';/,
+      /export const MOCK_USDT_ADDRESS(?: *: *string)? *= *'0x[0-9a-fA-F]+';/g,
       `export const MOCK_USDT_ADDRESS: string = '${mockUSDTAddress}';`
     );
     configContent = configContent.replace(
-      /export const MARKETPLACE_ADDRESS\s*(?::\s*string)?\s*=\s*'0x[0-9a-fA-F]+';/,
+      /export const MARKETPLACE_ADDRESS(?: *: *string)? *= *'0x[0-9a-fA-F]+';/g,
       `export const MARKETPLACE_ADDRESS: string = '${marketplaceAddress}';`
     );
     
