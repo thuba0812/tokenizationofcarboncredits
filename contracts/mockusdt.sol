@@ -11,7 +11,7 @@ contract MockUSDT is ERC20, Ownable {
         return 6;
     }
 
-    function mint(address to, uint256 amount) external onlyOwner {
+    function mint(address to, uint256 amount) external {
         require(to != address(0), "Invalid recipient");
         require(amount > 0, "Amount must be > 0");
         _mint(to, amount);

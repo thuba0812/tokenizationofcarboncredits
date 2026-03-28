@@ -121,8 +121,9 @@ export function useMetaMask() {
       }
 
       return true
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
+      setError(err.message || 'Lỗi lấy thông tin tài khoản')
       return false
     }
   }, [getNetworkError])

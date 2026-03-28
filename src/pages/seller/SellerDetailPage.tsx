@@ -76,6 +76,11 @@ export default function SellerDetailPage() {
     [project],
   );
 
+  const totalListedAmount = useMemo(
+    () => mintedTokens.reduce((sum, token) => sum + (token.listedAmount || 0), 0),
+    [mintedTokens]
+  );
+
   if (identityLoading || loading) {
     return <div className="p-10 text-center">Đang tải dữ liệu...</div>;
   }
@@ -387,7 +392,7 @@ export default function SellerDetailPage() {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <h1 className="font-heading text-base font-bold uppercase tracking-widest text-gray-900">
-              CHI TIET DU AN
+              CHI TIẾT DỰ ÁN
             </h1>
           </div>
           {wallet.isConnected && (
@@ -452,12 +457,12 @@ export default function SellerDetailPage() {
                 </div>
                 <div className="rounded border border-gray-200 bg-gray-50 p-4">
                   <div className="mb-1 font-heading text-xs font-bold tracking-widest text-gray-400">
-                    SỐ LƯỢNG TÍN CHỈ CARBON
+                    TỔNG TOKEN ĐANG ĐĂNG BÁN
                   </div>
                   <div className="font-heading text-3xl font-bold text-gray-900">
-                    {project.tokenCount.toLocaleString("vi-VN")}
+                    {totalListedAmount.toLocaleString("vi-VN")}
                     <span className="ml-1 text-base font-medium text-green-600">
-                      tin chi
+                      token
                     </span>
                   </div>
                 </div>
@@ -619,7 +624,7 @@ export default function SellerDetailPage() {
                                       ? "cursor-not-allowed text-gray-300"
                                       : "cursor-pointer text-green-700 hover:bg-green-50"
                                   }`}
-                                  title="Luu"
+                                  title="Lưu"
                                 >
                                   {isSaving ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -631,7 +636,7 @@ export default function SellerDetailPage() {
                                   onClick={cancelEditing}
                                   disabled={isSaving || txState.isLoading}
                                   className="cursor-pointer rounded p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 disabled:cursor-not-allowed disabled:text-gray-300"
-                                  title="Huy"
+                                  title="Hủy"
                                 >
                                   <X className="h-4 w-4" />
                                 </button>
@@ -645,7 +650,7 @@ export default function SellerDetailPage() {
                                   }
                                   disabled={isSaving || txState.isLoading}
                                   className="cursor-pointer rounded p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 disabled:cursor-not-allowed disabled:text-gray-300"
-                                  title="Lam moi"
+                                  title="Làm mới"
                                 >
                                   <RotateCcw className="h-4 w-4" />
                                 </button>
@@ -660,7 +665,7 @@ export default function SellerDetailPage() {
                                   )
                                 }
                                 className="cursor-pointer rounded p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-green-700"
-                                title="Chinh sua"
+                                title="Chỉnh sửa"
                               >
                                 <Pencil className="h-4 w-4" />
                               </button>
@@ -676,8 +681,7 @@ export default function SellerDetailPage() {
                         colSpan={7}
                         className="px-5 py-8 text-center text-sm text-gray-400"
                       >
-                        Chi cac dong da mint thanh cong moi hien thi trong phan
-                        tai san.
+                        Chỉ các dòng đã mint thành công mới hiển thị trong phần tài sản.
                       </td>
                     </tr>
                   )}
@@ -709,26 +713,26 @@ export default function SellerDetailPage() {
           <div>
             <div className="sticky top-24 rounded border border-gray-200 p-6">
               <h2 className="mb-4 font-heading text-lg font-bold tracking-widest text-gray-700">
-                DON VI DAI DIEN
+                ĐƠN VỊ ĐẠI DIỆN
               </h2>
               <hr className="mb-4 border-gray-100" />
               <RepField
-                label="TEN DON VI"
+                label="TÊN ĐƠN VỊ"
                 value={representative.company}
                 bold
               />
-              <RepField label="MA SO THUE" value={representative.taxId} />
+              <RepField label="MÃ SỐ THUẾ" value={representative.taxId} />
               <RepField
-                label="NGUOI DAI DIEN"
+                label="NGƯỜI ĐẠI DIỆN"
                 value={representative.contact}
                 bold
               />
-              <RepField label="SO DIEN THOAI" value={representative.phone} />
+              <RepField label="SỐ ĐIỆN THOẠI" value={representative.phone} />
               <RepField label="EMAIL" value={representative.email} link />
               <hr className="my-4 border-gray-100" />
               <div>
                 <div className="mb-2 font-heading text-xs font-bold tracking-widest text-gray-400">
-                  DIA CHI VI PHAP NHAN
+                  ĐỊA CHỈ VÍ PHÁP NHÂN
                 </div>
                 <div className="break-all rounded border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-600">
                   {representative.walletAddress}
@@ -740,7 +744,7 @@ export default function SellerDetailPage() {
                   href="#"
                   className="flex cursor-pointer items-center gap-1 text-xs font-heading font-bold tracking-wider text-green-700 hover:underline"
                 >
-                  VI DA XAC MINH TREN CHUOI <ExternalLink className="h-3 w-3" />
+                  VÍ ĐÃ XÁC MINH TRÊN CHUỖI <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
             </div>

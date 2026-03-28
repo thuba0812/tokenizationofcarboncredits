@@ -13,13 +13,13 @@
 // ─── Contract Addresses ─────────────────────────────────
 
 /** Địa chỉ contract CarbonToken (ERC1155) */
-export const CARBON_TOKEN_ADDRESS: string = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
+export const CARBON_TOKEN_ADDRESS: string = '0x53fF7837667a7158AFCAf3e93e3BCd9eD5bd0c8F';
 
 /** Địa chỉ contract MockUSDT (ERC20) */
-export const MOCK_USDT_ADDRESS: string = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+export const MOCK_USDT_ADDRESS: string = '0xA20192c45deFB2FeB44a396c6Cef4a073cA296aB';
 
 /** Địa chỉ contract CarbonMarketplace */
-export const MARKETPLACE_ADDRESS: string = '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0';
+export const MARKETPLACE_ADDRESS: string = '0xF968995D66e80abf90C7F9c925cf0B78e49534dc';
 
 // ─── Network Config ─────────────────────────────────────
 
@@ -30,13 +30,13 @@ export const MARKETPLACE_ADDRESS: string = '0x9fE46736679d2D9a65F0992F2272dE9f3c
  * - BSC Testnet: 97
  * - Localhost Ganache: 1337
  */
-export const CHAIN_ID = 31337;
+export const CHAIN_ID = 11155111;
 
 /** Tên mạng hiển thị cho user */
-export const NETWORK_NAME = 'Hardhat Local';
+export const NETWORK_NAME = 'Sepolia Testnet';
 
 /** Block explorer URL (để link đến transaction) */
-export const BLOCK_EXPLORER_URL = '';
+export const BLOCK_EXPLORER_URL = 'https://sepolia.etherscan.io';
 
 // ─── USDT Config ────────────────────────────────────────
 

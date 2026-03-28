@@ -391,7 +391,6 @@ export default function SellPage() {
     } finally {
       setIsSubmitting(false);
       submitLockRef.current = false;
-      txState.reset();
     }
   };
 
@@ -608,12 +607,7 @@ export default function SellPage() {
 
         <div className="mb-6 border-b border-gray-100 bg-white py-2">
           <div className="grid grid-cols-12 items-center gap-4 px-6">
-            <div className="col-span-3">
-              <span className="font-heading text-base font-bold uppercase tracking-widest text-black">
-                DỰ ÁN
-              </span>
-            </div>
-            <div className="col-span-1">
+            <div className="col-span-2">
               <span className="font-heading text-base font-bold uppercase tracking-widest text-black">
                 NĂM
               </span>
@@ -628,12 +622,12 @@ export default function SellPage() {
                 HIỆN CÓ
               </span>
             </div>
-            <div className="col-span-2 text-center">
+            <div className="col-span-3 text-center">
               <span className="font-heading text-base font-bold uppercase tracking-widest text-green-700">
                 ĐANG BÁN
               </span>
             </div>
-            <div className="col-span-1 text-center">
+            <div className="col-span-2 text-center">
               <span className="font-heading text-base font-bold uppercase tracking-widest text-green-700">
                 GIÁ
               </span>
@@ -646,127 +640,143 @@ export default function SellPage() {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-12">
           {filtered.length > 0 ? (
-            filtered.map((row) => {
-              const quantityInput = getQuantityInput(row);
-              const priceInput = getPriceInput(row);
-              const errors = rowErrors[row.tokenId];
-
-              return (
-                <div
-                  key={row.vintageId}
-                  className="rounded-md border border-gray-200 bg-white px-6 py-5 shadow-sm"
-                >
-                  <div className="grid grid-cols-12 items-start gap-4">
-                    <div className="col-span-3">
-                      <div className="font-heading text-sm font-bold tracking-widest text-gray-900">
-                        {row.projectName}
-                      </div>
-                      <div className="mt-1 text-xs text-gray-400">
-                        {row.projectCode}
-                      </div>
-                    </div>
-
-                    <div className="col-span-1 pt-2">
-                      <span className="font-heading text-sm font-bold text-green-700">
-                        {row.year}
-                      </span>
-                    </div>
-
-                    <div className="col-span-2 pt-2 text-center font-mono text-sm text-gray-700">
-                      {row.tokenId}
-                    </div>
-
-                    <div className="col-span-2 pt-2 text-center font-heading text-sm font-bold text-gray-900">
-                      {row.available}
-                    </div>
-
-                    <div className="col-span-2">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                          <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
-                            Hiện tại
-                          </span>
-                          <span className="text-sm font-semibold text-gray-900">
-                            {row.listedAmount || 0}
-                          </span>
-                        </div>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={quantityInput}
-                          placeholder={
-                            row.listedAmount > 0
-                              ? "Nhập tổng đang bán mới"
-                              : "Nhập số lượng đang bán"
-                          }
-                          onChange={(e) =>
-                            handleQuantityChange(row.tokenId, e.target.value)
-                          }
-                          className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 ${
-                            errors?.quantity
-                              ? "border-red-300 bg-red-50 text-red-700"
-                              : "border-gray-300 focus:border-green-600"
-                          }`}
-                        />
-                      </div>
-                      {errors?.quantity ? (
-                        <p className="mt-1 text-xs text-red-600">
-                          {errors.quantity}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div className="col-span-1">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between rounded-lg border border-green-100 bg-green-50 px-3 py-2">
-                          <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
-                            Hiện tại
-                          </span>
-                          <span className="text-sm font-semibold text-green-700">
-                            {typeof row.price === "number" ? row.price : "-"}
-                          </span>
-                        </div>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={priceInput}
-                          placeholder={
-                            typeof row.price === "number"
-                              ? "Nhập giá mới"
-                              : "Nhập giá"
-                          }
-                          onChange={(e) =>
-                            handlePriceChange(row.tokenId, e.target.value)
-                          }
-                          className={`w-full rounded-lg border bg-white px-3 py-2.5 text-center text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 ${
-                            errors?.price
-                              ? "border-red-300 bg-red-50 text-red-700"
-                              : "border-gray-300 focus:border-green-600"
-                          }`}
-                        />
-                      </div>
-                      {errors?.price ? (
-                        <p className="mt-1 text-xs text-red-600">
-                          {errors.price}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div className="col-span-1 flex justify-end pt-2">
-                      <button
-                        onClick={() => handleReset(row)}
-                        className="cursor-pointer text-gray-400 transition-colors hover:text-green-700"
-                        title="Làm mới"
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
+            Object.values(
+              filtered.reduce((groups, row) => {
+                if (!groups[row.projectId]) {
+                  groups[row.projectId] = {
+                    projectId: row.projectId,
+                    projectName: row.projectName,
+                    projectCode: row.projectCode,
+                    tokens: []
+                  };
+                }
+                groups[row.projectId].tokens.push(row);
+                return groups;
+              }, {} as Record<string, { projectId: string; projectName: string; projectCode: string; tokens: SellRow[] }>)
+            ).map((project) => (
+              <div
+                key={project.projectId}
+                className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+              >
+                <div className="flex items-center gap-3 mb-5 px-2">
+                  <h3 className="font-heading font-bold text-sm text-gray-900 uppercase tracking-widest">
+                    {project.projectName} ({project.projectCode})
+                  </h3>
                 </div>
-              );
-            })
+                <div className="bg-white rounded-md border border-gray-200 overflow-hidden shadow-sm">
+                  {[...project.tokens].sort((a, b) => b.year - a.year).map((row) => {
+                    const quantityInput = getQuantityInput(row);
+                    const priceInput = getPriceInput(row);
+                    const errors = rowErrors[row.tokenId];
+
+                    return (
+                      <div
+                        key={row.vintageId}
+                        className="grid grid-cols-12 gap-4 px-6 py-5 hover:bg-gray-50/50 items-center transition-colors border-t border-gray-100 first:border-t-0"
+                      >
+                        <div className="col-span-2">
+                          <span className="font-heading text-sm font-bold text-green-700">
+                            {row.year}
+                          </span>
+                        </div>
+
+                        <div className="col-span-2 text-center font-mono text-sm text-gray-700">
+                          {row.tokenId}
+                        </div>
+
+                        <div className="col-span-2 text-center font-heading text-sm font-bold text-gray-900">
+                          {row.available}
+                        </div>
+
+                        <div className="col-span-3">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                              <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
+                                Hiện tại
+                              </span>
+                              <span className="text-sm font-semibold text-gray-900">
+                                {row.listedAmount || 0}
+                              </span>
+                            </div>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={quantityInput}
+                              placeholder={
+                                row.listedAmount > 0
+                                  ? "Nhập mới"
+                                  : "Nhập SL"
+                              }
+                              onChange={(e) =>
+                                handleQuantityChange(row.tokenId, e.target.value)
+                              }
+                              className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 ${
+                                errors?.quantity
+                                  ? "border-red-300 bg-red-50 text-red-700"
+                                  : "border-gray-300 focus:border-green-600"
+                              }`}
+                            />
+                          </div>
+                          {errors?.quantity ? (
+                            <p className="mt-1 text-xs text-red-600">
+                              {errors.quantity}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="col-span-2">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between rounded-lg border border-green-100 bg-green-50 px-3 py-2">
+                              <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
+                                Hiện tại
+                              </span>
+                              <span className="text-sm font-semibold text-green-700">
+                                {typeof row.price === "number" ? row.price : "-"}
+                              </span>
+                            </div>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={priceInput}
+                              placeholder={
+                                typeof row.price === "number"
+                                  ? "Nhập mới"
+                                  : "Nhập giá"
+                              }
+                              onChange={(e) =>
+                                handlePriceChange(row.tokenId, e.target.value)
+                              }
+                              className={`w-full rounded-lg border bg-white px-3 py-2.5 text-center text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 ${
+                                errors?.price
+                                  ? "border-red-300 bg-red-50 text-red-700"
+                                  : "border-gray-300 focus:border-green-600"
+                              }`}
+                            />
+                          </div>
+                          {errors?.price ? (
+                            <p className="mt-1 text-xs text-red-600">
+                              {errors.price}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="col-span-1 flex justify-end">
+                          <button
+                            onClick={() => handleReset(row)}
+                            className="cursor-pointer text-gray-400 transition-colors hover:text-green-700"
+                            title="Làm mới"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
           ) : (
             <div className="rounded-md border border-gray-200 bg-white py-20 text-center text-gray-400 shadow-sm">
               <p className="font-heading text-sm font-bold tracking-widest">

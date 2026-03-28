@@ -32,8 +32,12 @@ async function getSigner() {
   return provider.getSigner();
 }
 
-function getReadProvider(): JsonRpcProvider {
-  return new JsonRpcProvider('http://127.0.0.1:8545');
+function getReadProvider(): JsonRpcProvider | BrowserProvider {
+  const eth = (window as any).ethereum;
+  if (eth) {
+    return new BrowserProvider(eth);
+  }
+  return new JsonRpcProvider('https://rpc2.sepolia.org');
 }
 
 function getCarbonTokenContract(signerOrProvider: any) {
@@ -293,6 +297,46 @@ export async function cancelListingDetailed(listingId: number): Promise<{ txHash
 // ═══════════════════════════════════════════════════════
 
 /**
+ * Uớc tính phí gas (Network fee) khi mua token
+ */
+export async function estimateBuyGas(itemCount: number): Promise<string> {
+  if (itemCount === 0) return '0.0000';
+  try {
+    assertConfigured();
+    const provider = getReadProvider();
+    const feeData = await provider.getFeeData();
+    // Use maxFeePerGas if available (EIP-1559), else gasPrice
+    const gasPrice = feeData.maxFeePerGas || feeData.gasPrice || 2000000000n; // fallback 2 gwei
+    
+    // Base transaction gas ~150k + ~50k per item
+    const estimatedGasLimit = 150000n + (50000n * BigInt(itemCount));
+    const estimatedCost = estimatedGasLimit * gasPrice;
+    
+    // Format to ETH with 4 decimals max for UI
+    const ethValue = parseFloat(formatUnits(estimatedCost, 18));
+    return ethValue.toFixed(5);
+  } catch (error) {
+    console.warn('Cannot estimate gas:', error);
+    return '0.0050'; // Safe fallback
+  }
+}
+
+/**
+ * Mint Mock USDT (chỉ dùng cho testnet)
+ * @param amount - Số USDT muốn mint (đã format, ví dụ 1000)
+ */
+export async function mintMockUSDT(amount: number): Promise<string> {
+  assertConfigured();
+  const signer = await getSigner();
+  const address = await signer.getAddress();
+  const usdt = getMockUSDTContract(signer);
+  const amountInSmallestUnit = parseUnits(amount.toString(), USDT_DECIMALS);
+  const tx = await usdt.mint(address, amountInSmallestUnit);
+  const receipt = await tx.wait();
+  return receipt.hash;
+}
+
+/**
  * Lấy số dư USDT của user (đã format về USDT)
  */
 export async function getUSDTBalance(): Promise<string> {
@@ -317,7 +361,7 @@ export async function getUSDTAllowance(): Promise<string> {
 }
 
 /**
- * Buyer approve USDT cho Marketplace
+ * Buyer approve USDT cho Marketplace (Exact Amount - B2B Security Standard)
  * @param amount - Số USDT muốn approve (chưa nhân decimals)
  */
 export async function approveUSDT(amount: number): Promise<string> {
