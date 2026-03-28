@@ -609,37 +609,37 @@ export default function SellPage() {
         <div className="mb-6 border-b border-gray-100 bg-white py-2">
           <div className="grid grid-cols-12 items-center gap-4 px-6">
             <div className="col-span-3">
-              <span className="font-heading text-base font-bold uppercase tracking-widest text-black">
+              <span className="font-heading text-xs font-bold uppercase tracking-[0.15em] text-gray-500">
                 DỰ ÁN
               </span>
             </div>
             <div className="col-span-1">
-              <span className="font-heading text-base font-bold uppercase tracking-widest text-black">
+              <span className="font-heading text-xs font-bold uppercase tracking-[0.15em] text-gray-500">
                 NĂM
               </span>
             </div>
-            <div className="col-span-2 text-center">
-              <span className="font-heading text-base font-bold uppercase tracking-widest text-black">
-                TOKEN ID
-              </span>
-            </div>
-            <div className="col-span-2 text-center">
-              <span className="font-heading text-base font-bold uppercase tracking-widest text-black">
-                HIỆN CÓ
-              </span>
-            </div>
-            <div className="col-span-2 text-center">
-              <span className="font-heading text-base font-bold uppercase tracking-widest text-green-700">
-                ĐANG BÁN
+            <div className="col-span-1 text-center">
+              <span className="font-heading text-xs font-bold uppercase tracking-[0.15em] text-gray-500">
+                ID
               </span>
             </div>
             <div className="col-span-1 text-center">
-              <span className="font-heading text-base font-bold uppercase tracking-widest text-green-700">
-                GIÁ
+              <span className="font-heading text-xs font-bold uppercase tracking-[0.15em] text-gray-500">
+                CÓ SẴN
+              </span>
+            </div>
+            <div className="col-span-3">
+              <span className="font-heading text-xs font-bold uppercase tracking-[0.15em] text-green-700">
+                ĐANG BÁN
+              </span>
+            </div>
+            <div className="col-span-2 text-center">
+              <span className="font-heading text-xs font-bold uppercase tracking-[0.15em] text-green-700">
+                ĐƠN GIÁ
               </span>
             </div>
             <div className="col-span-1 text-right">
-              <span className="font-heading text-base font-bold uppercase tracking-widest text-black">
+              <span className="font-heading text-xs font-bold uppercase tracking-[0.15em] text-gray-500">
                 THAO TÁC
               </span>
             </div>
@@ -656,112 +656,128 @@ export default function SellPage() {
               return (
                 <div
                   key={row.vintageId}
-                  className="rounded-md border border-gray-200 bg-white px-6 py-5 shadow-sm"
+                  className="rounded-xl border border-gray-100 bg-white px-6 py-5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-300 hover:border-green-200 hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)]"
                 >
                   <div className="grid grid-cols-12 items-start gap-4">
-                    <div className="col-span-3">
-                      <div className="font-heading text-sm font-bold tracking-widest text-gray-900">
+                    <div className="col-span-3 pt-1">
+                      <div className="font-heading text-sm font-bold tracking-widest text-gray-900 line-clamp-1" title={row.projectName}>
                         {row.projectName}
                       </div>
-                      <div className="mt-1 text-xs text-gray-400">
+                      <div className="mt-1 text-xs tracking-wider text-gray-400">
                         {row.projectCode}
                       </div>
                     </div>
 
-                    <div className="col-span-1 pt-2">
-                      <span className="font-heading text-sm font-bold text-green-700">
-                        {row.year}
+                    <div className="col-span-1 pt-1.5 border-l border-gray-100 pl-4">
+                      <div className="inline-flex items-center rounded bg-gray-50 px-2 py-1">
+                        <span className="font-heading text-xs font-bold text-gray-600">
+                          {row.year}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="col-span-1 pt-2 text-center font-mono text-sm font-medium text-gray-500">
+                      #{row.tokenId}
+                    </div>
+
+                    <div className="col-span-1 pt-2 text-center">
+                      <span className="font-heading text-sm font-black text-gray-800">
+                        {row.available}
                       </span>
                     </div>
 
-                    <div className="col-span-2 pt-2 text-center font-mono text-sm text-gray-700">
-                      {row.tokenId}
-                    </div>
-
-                    <div className="col-span-2 pt-2 text-center font-heading text-sm font-bold text-gray-900">
-                      {row.available}
-                    </div>
-
-                    <div className="col-span-2">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                          <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
-                            Hiện tại
-                          </span>
-                          <span className="text-sm font-semibold text-gray-900">
-                            {row.listedAmount || 0}
-                          </span>
+                    {/* Quantity Input */}
+                    <div className="col-span-3 pl-2">
+                      <div className="group relative">
+                        <div className="absolute -inset-0.5 rounded-lg bg-gradient-to-r from-green-500/0 to-emerald-500/0 opacity-0 blur transition duration-300 group-focus-within:from-green-500/20 group-focus-within:to-emerald-500/20 group-focus-within:opacity-100"></div>
+                        <div className={`relative flex items-center overflow-hidden rounded-lg border bg-white shadow-sm transition-all focus-within:border-green-500 focus-within:ring-1 focus-within:ring-green-500 hover:border-green-300 ${errors?.quantity ? 'border-red-300' : 'border-gray-200'}`}>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={quantityInput}
+                            placeholder={row.listedAmount > 0 ? "Tổng lượng bán mới" : "Nhập số lượng bán"}
+                            onChange={(e) => handleQuantityChange(row.tokenId, e.target.value)}
+                            className={`w-full bg-transparent py-2.5 pl-3 pr-20 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-gray-300 ${errors?.quantity ? 'text-red-700' : 'text-gray-900'}`}
+                          />
+                          <div className="absolute right-1.5 flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleQuantityChange(row.tokenId, String(row.available))}
+                              className="rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-green-700 bg-green-50 hover:bg-green-100 transition-colors"
+                              title="Bán Tối Đa"
+                            >
+                              MAX
+                            </button>
+                            <span className="text-xs font-medium text-gray-400 select-none">tCO2</span>
+                          </div>
                         </div>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={quantityInput}
-                          placeholder={
-                            row.listedAmount > 0
-                              ? "Nhập tổng đang bán mới"
-                              : "Nhập số lượng đang bán"
-                          }
-                          onChange={(e) =>
-                            handleQuantityChange(row.tokenId, e.target.value)
-                          }
-                          className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 ${
-                            errors?.quantity
-                              ? "border-red-300 bg-red-50 text-red-700"
-                              : "border-gray-300 focus:border-green-600"
-                          }`}
-                        />
                       </div>
-                      {errors?.quantity ? (
-                        <p className="mt-1 text-xs text-red-600">
-                          {errors.quantity}
-                        </p>
-                      ) : null}
+                      
+                      <div className="mt-1.5 flex items-center justify-between px-1">
+                        <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">Hiện tại: <span className="text-gray-900 font-bold">{row.listedAmount || 0}</span></span>
+                        {errors?.quantity ? (
+                          <span className="text-xs font-semibold text-red-600 truncate max-w-[120px]" title={errors.quantity}>{errors.quantity}</span>
+                        ) : (
+                          <span className="text-[10px] uppercase tracking-wider text-green-600 font-medium opacity-0 group-focus-within:opacity-100 transition-opacity">Số lượng hợp lệ</span>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="col-span-1">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between rounded-lg border border-green-100 bg-green-50 px-3 py-2">
-                          <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
-                            Hiện tại
-                          </span>
-                          <span className="text-sm font-semibold text-green-700">
-                            {typeof row.price === "number" ? row.price : "-"}
-                          </span>
+                    {/* Price Input */}
+                    <div className="col-span-2 pl-2 border-l border-gray-100">
+                      <div className="group relative">
+                        <div className="absolute -inset-0.5 rounded-lg bg-gradient-to-r from-green-500/0 to-emerald-500/0 opacity-0 blur transition duration-300 group-focus-within:from-green-500/20 group-focus-within:to-emerald-500/20 group-focus-within:opacity-100"></div>
+                        <div className={`relative flex items-center overflow-hidden rounded-lg border bg-white shadow-sm transition-all focus-within:border-green-500 focus-within:ring-1 focus-within:ring-green-500 hover:border-green-300 ${errors?.price ? 'border-red-300' : 'border-gray-200'}`}>
+                          <div className="flex h-full items-center justify-center bg-gray-50 px-3 text-gray-500 border-r border-gray-100">
+                            <span className="text-sm font-medium">$</span>
+                          </div>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={priceInput}
+                            placeholder={typeof row.price === "number" ? "Giá mới" : "Đơn giá"}
+                            onChange={(e) => handlePriceChange(row.tokenId, e.target.value)}
+                            className={`w-full bg-transparent py-2.5 pl-3 pr-12 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-gray-300 ${errors?.price ? 'text-red-700' : 'text-gray-900'}`}
+                          />
+                          <div className="absolute right-3 flex items-center">
+                            <span className="text-[10px] font-bold text-gray-400 select-none uppercase tracking-wider">USDT</span>
+                          </div>
                         </div>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={priceInput}
-                          placeholder={
-                            typeof row.price === "number"
-                              ? "Nhập giá mới"
-                              : "Nhập giá"
-                          }
-                          onChange={(e) =>
-                            handlePriceChange(row.tokenId, e.target.value)
-                          }
-                          className={`w-full rounded-lg border bg-white px-3 py-2.5 text-center text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 ${
-                            errors?.price
-                              ? "border-red-300 bg-red-50 text-red-700"
-                              : "border-gray-300 focus:border-green-600"
-                          }`}
-                        />
                       </div>
-                      {errors?.price ? (
-                        <p className="mt-1 text-xs text-red-600">
-                          {errors.price}
-                        </p>
-                      ) : null}
+
+                      <div className="mt-1.5 flex items-center justify-between px-1">
+                        <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">N/T: <span className="text-green-700 font-bold">{typeof row.price === "number" ? row.price : "-"}</span></span>
+                        {errors?.price && (
+                          <span className="text-[10px] font-semibold text-red-600 truncate max-w-[80px]" title={errors.price}>{errors.price}</span>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="col-span-1 flex justify-end pt-2">
+                    {/* Action Button & Expected Revenue */}
+                    <div className="col-span-1 flex flex-col items-end gap-2 pt-1">
                       <button
                         onClick={() => handleReset(row)}
-                        className="cursor-pointer text-gray-400 transition-colors hover:text-green-700"
-                        title="Làm mới"
+                        className="group flex h-8 w-8 items-center justify-center rounded-full bg-gray-50 text-gray-400 transition-all hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                        title="Khôi phục giá trị"
                       >
-                        <RotateCcw className="h-4 w-4" />
+                        <RotateCcw className="h-4 w-4 transition-transform duration-300 group-hover:-rotate-90 group-hover:scale-110" />
                       </button>
+                      
+                      {/* Live Expected Revenue Indicator */}
+                      {(() => {
+                        const qty = quantityInput ? parseFloat(quantityInput.replace(/,/g, '')) : 0;
+                        const prc = priceInput ? parseFloat(priceInput.replace(/,/g, '')) : 0;
+                        const revenue = !isNaN(qty) && !isNaN(prc) ? (qty * prc).toLocaleString('en-US') : '0';
+                        const isActive = qty > 0 && prc > 0 && !errors?.quantity && !errors?.price;
+                        
+                        return (
+                          <div className={`flex flex-col items-end transition-all duration-300 ${isActive ? 'opacity-100 translate-y-0' : 'opacity-30 -translate-y-1'}`}>
+                            <span className="text-[9px] uppercase tracking-[0.2em] text-gray-400 font-semibold mb-0.5 whitespace-nowrap">Dự thu</span>
+                            <span className={`text-sm font-black tracking-tight ${isActive ? 'text-green-600' : 'text-gray-300'}`}>
+                              ${revenue}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

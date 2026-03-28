@@ -518,38 +518,38 @@ export default function SellerDetailPage() {
                         </td>
                         <td className="px-5 py-4 text-center">
                           {isEditing ? (
-                            <div className="mx-auto max-w-[220px]">
-                              <div className="mb-2 grid grid-cols-2 gap-2 text-[11px] text-gray-500">
-                                <span>Đang bán hiện tại</span>
-                                <span>Nhập mới</span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-center text-sm font-semibold text-gray-700">
-                                  {token.listedAmount || 0}
-                                </div>
+                            <div className="mx-auto max-w-[260px] group relative">
+                              <div className="absolute -inset-0.5 rounded-lg bg-gradient-to-r from-green-500/0 to-emerald-500/0 opacity-0 blur transition duration-300 group-focus-within:from-green-500/20 group-focus-within:to-emerald-500/20 group-focus-within:opacity-100"></div>
+                              <div className={`relative flex items-center overflow-hidden rounded-lg border bg-white shadow-sm transition-all focus-within:border-green-500 focus-within:ring-1 focus-within:ring-green-500 hover:border-green-300 ${errors.quantity ? 'border-red-300' : 'border-gray-200'}`}>
                                 <input
                                   type="text"
                                   inputMode="numeric"
                                   value={draft.quantity}
+                                  placeholder={(token.listedAmount || 0) > 0 ? "SL bán mới" : "Nhập SL bán"}
                                   onChange={(event) =>
-                                    updateDraft(
-                                      token.vintageId as number,
-                                      "quantity",
-                                      event.target.value,
-                                    )
+                                    updateDraft(token.vintageId as number, "quantity", event.target.value)
                                   }
-                                  className={`w-full rounded border px-3 py-2 text-center text-sm outline-none transition-colors ${
-                                    errors.quantity
-                                      ? "border-red-300 bg-red-50 text-red-700"
-                                      : "border-gray-300 focus:border-green-500"
-                                  }`}
+                                  className={`w-full bg-transparent py-2.5 pl-3 pr-20 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-gray-300 ${errors.quantity ? 'text-red-700' : 'text-gray-900'}`}
                                 />
+                                <div className="absolute right-1.5 flex items-center gap-1.5">
+                                  <button
+                                    onClick={() => updateDraft(token.vintageId as number, "quantity", String(token.available))}
+                                    className="rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-green-700 bg-green-50 hover:bg-green-100 transition-colors"
+                                    title="Bán Tối Đa"
+                                  >
+                                    MAX
+                                  </button>
+                                  <span className="text-xs font-medium text-gray-400 select-none">tCO2</span>
+                                </div>
                               </div>
-                              {errors.quantity ? (
-                                <p className="mt-1 text-left text-xs text-red-600">
-                                  {errors.quantity}
-                                </p>
-                              ) : null}
+                              <div className="mt-1.5 flex items-center justify-between px-1">
+                                <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">Đang bán: <span className="text-gray-900 font-bold">{token.listedAmount || 0}</span></span>
+                                {errors.quantity ? (
+                                  <span className="text-[10px] font-semibold text-red-600 truncate max-w-[120px]" title={errors.quantity}>{errors.quantity}</span>
+                                ) : (
+                                  <span className="text-[10px] uppercase tracking-wider text-green-600 font-medium opacity-0 group-focus-within:opacity-100 transition-opacity">Khả dụng</span>
+                                )}
+                              </div>
                             </div>
                           ) : (
                             <span className="font-bold text-gray-900">
@@ -562,38 +562,48 @@ export default function SellerDetailPage() {
                         </td>
                         <td className="px-5 py-4 text-center">
                           {isEditing ? (
-                            <div className="mx-auto max-w-[250px]">
-                              <div className="mb-2 grid grid-cols-2 gap-2 text-[11px] text-gray-500">
-                                <span>Giá hiện tại</span>
-                                <span>Nhập mới</span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-center text-sm font-semibold text-gray-700">
-                                  {formatPrice(token.price)}
+                            <div className="mx-auto max-w-[260px]">
+                              <div className="group relative">
+                                <div className="absolute -inset-0.5 rounded-lg bg-gradient-to-r from-green-500/0 to-emerald-500/0 opacity-0 blur transition duration-300 group-focus-within:from-green-500/20 group-focus-within:to-emerald-500/20 group-focus-within:opacity-100"></div>
+                                <div className={`relative flex items-center overflow-hidden rounded-lg border bg-white shadow-sm transition-all focus-within:border-green-500 focus-within:ring-1 focus-within:ring-green-500 hover:border-green-300 ${errors.price ? 'border-red-300' : 'border-gray-200'}`}>
+                                  <div className="flex h-full items-center justify-center bg-gray-50 px-3 text-gray-500 border-r border-gray-100">
+                                    <span className="text-sm font-medium">$</span>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={draft.price}
+                                    placeholder={token.price ? "Đơn giá mới" : "Nhập đơn giá"}
+                                    onChange={(event) =>
+                                      updateDraft(token.vintageId as number, "price", event.target.value)
+                                    }
+                                    className={`w-full bg-transparent py-2.5 pl-3 pr-14 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-gray-300 ${errors.price ? 'text-red-700' : 'text-gray-900'}`}
+                                  />
+                                  <div className="absolute right-3 flex items-center">
+                                    <span className="text-[10px] font-bold text-gray-400 select-none uppercase tracking-wider">USDT</span>
+                                  </div>
                                 </div>
-                                <input
-                                  type="text"
-                                  inputMode="decimal"
-                                  value={draft.price}
-                                  onChange={(event) =>
-                                    updateDraft(
-                                      token.vintageId as number,
-                                      "price",
-                                      event.target.value,
-                                    )
-                                  }
-                                  className={`w-full rounded border px-3 py-2 text-center text-sm outline-none transition-colors ${
-                                    errors.price
-                                      ? "border-red-300 bg-red-50 text-red-700"
-                                      : "border-gray-300 focus:border-green-500"
-                                  }`}
-                                />
                               </div>
-                              {errors.price ? (
-                                <p className="mt-1 text-left text-xs text-red-600">
-                                  {errors.price}
-                                </p>
-                              ) : null}
+                              <div className="mt-1.5 flex items-center justify-between px-1">
+                                <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">Hiện tại: <span className="text-green-700 font-bold">{formatPrice(token.price)}</span></span>
+                                {errors.price && (
+                                  <span className="text-[10px] font-semibold text-red-600 truncate max-w-[120px]" title={errors.price}>{errors.price}</span>
+                                )}
+                              </div>
+                              
+                              {/* Expected Revenue Footer */}
+                              {(() => {
+                                const qty = parseFloat(draft.quantity?.replace(/,/g, '') || '0');
+                                const prc = parseFloat(draft.price?.replace(/,/g, '') || '0');
+                                const revenue = !isNaN(qty) && !isNaN(prc) ? (qty * prc).toLocaleString('en-US') : '0';
+                                const isActive = qty > 0 && prc > 0 && !errors.quantity && !errors.price;
+                                return (
+                                  <div className={`mt-3 flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 transition-all duration-300 ${isActive ? 'opacity-100 ring-1 ring-gray-200 shadow-sm' : 'opacity-40'}`}>
+                                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Dự thu:</span>
+                                    <span className={`text-sm font-black tracking-tight ${isActive ? 'text-green-600' : 'text-gray-400'}`}>${revenue}</span>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           ) : (
                             <span className="font-bold text-green-700">
