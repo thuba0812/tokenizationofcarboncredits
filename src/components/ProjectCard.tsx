@@ -11,7 +11,7 @@ export default function ProjectCard({ project, onViewDetail, showPriceBadge = tr
   const isPriceSet = hasPriceRange
 
   return (
-    <div 
+    <div
       onClick={() => onViewDetail(project.id)}
       className="bg-white border border-gray-200 rounded overflow-hidden hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer group"
     >
@@ -24,11 +24,10 @@ export default function ProjectCard({ project, onViewDetail, showPriceBadge = tr
         />
         {/* Price badge */}
         {showPriceBadge && (
-          <div className={`absolute top-2.5 right-0 font-heading font-bold text-xs tracking-wider px-3 py-1 ${
-            isPriceSet
-              ? 'bg-green-700 text-white'
-              : 'bg-gray-800 text-white'
-          }`}>
+          <div className={`absolute top-2.5 right-0 font-heading font-bold text-xs tracking-wider px-3 py-1 ${isPriceSet
+            ? 'bg-green-700 text-white'
+            : 'bg-gray-800 text-white'
+            }`}>
             {isPriceSet
               ? `${project.priceMin} - ${project.priceMax} USDT/TOKEN`
               : 'CHƯA ĐĂNG BÁN'}
@@ -38,8 +37,8 @@ export default function ProjectCard({ project, onViewDetail, showPriceBadge = tr
 
       {/* Content */}
       <div className="p-4">
-        <div className="font-heading text-xs font-bold tracking-widest text-gray-400 mb-1">MÃ DỰ ÁN</div>
-        <div className="font-heading font-bold text-lg text-gray-900 tracking-wide mb-3">{project.code}</div>
+        <div className="font-heading text-xs font-bold tracking-widest text-gray-400 uppercase mb-1">{project.code}</div>
+        <div className="font-heading font-bold text-lg text-gray-900 tracking-wide mb-3 uppercase truncate" title={project.name}>{project.name}</div>
         <div className="font-heading font-bold text-3xl text-green-700 mb-3">
           {project.tokenCount.toLocaleString('vi-VN')}
           <span className="text-3xl font-bold text-green-700 ml-2">TOKEN</span>

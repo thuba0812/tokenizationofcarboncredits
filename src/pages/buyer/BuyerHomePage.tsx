@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import SearchBar from '../../components/SearchBar'
+import DataTable from '../../components/DataTable'
 import BurnModal from '../../components/modals/BurnModal'
 import { usePortfolio } from '../../hooks/usePortfolio'
 import { useWallet } from '../../contexts/WalletContext'
@@ -12,7 +13,7 @@ export default function BuyerHomePage() {
   const [burnProject, setBurnProject] = useState<Project | null>(null)
   const { wallet } = useWallet()
   const { walletId, loading: identityLoading } = useWalletIdentity(wallet.address)
-  const { credits, loading } = usePortfolio(walletId ?? 0)
+  const { credits, transactions, loading } = usePortfolio(walletId ?? 0)
 
   const purchasedProjects = credits.filter((item) =>
     item.project.name.toLowerCase().includes(search.toLowerCase())
@@ -32,7 +33,7 @@ export default function BuyerHomePage() {
             </h1>
             <p className="mt-1 text-sm text-gray-500">Danh mục các dự án carbon đã mua theo ví hiện tại</p>
           </div>
-          <SearchBar value={search} onChange={setSearch} onFilter={() => {}} />
+          <SearchBar value={search} onChange={setSearch} onFilter={() => { }} />
         </div>
 
         <hr className="mb-8 border-gray-200" />
@@ -46,14 +47,16 @@ export default function BuyerHomePage() {
               <div className="relative">
                 <img src={item.project.thumbnail} alt={item.project.name} className="h-44 w-full object-cover" />
                 <div className="absolute right-0 top-2.5 bg-green-700 px-3 py-1 font-heading text-xs font-bold tracking-wider text-white">
-                  {item.pricePerToken.toFixed(2)} ETH/TOKEN
+                  {item.pricePerToken.toFixed(2)} USDT/TOKEN
                 </div>
               </div>
 
               <div className="p-4">
-                <div className="mb-1 font-heading text-xs font-bold tracking-widest text-gray-400">MÃ DỰ ÁN</div>
-                <div className="mb-1 font-heading text-lg font-bold text-gray-900">{item.project.code}</div>
-                <p className="mb-4 line-clamp-2 text-sm text-gray-500">{item.project.description}</p>
+                <div className="mb-1 font-heading text-xs font-bold tracking-widest text-gray-400 uppercase">
+                  {item.project.code}
+                </div>
+                <div className="mb-4 font-heading text-lg font-bold text-gray-900 uppercase truncate" title={item.project.name}>{item.project.name}</div>
+                <p className="mb-4 line-clamp-2 text-sm text-gray-500 italic">{item.project.description}</p>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setBurnProject(item.project)}
@@ -78,6 +81,14 @@ export default function BuyerHomePage() {
       </div>
 
       <BurnModal isOpen={!!burnProject} onClose={() => setBurnProject(null)} project={burnProject} />
+
+      <div className="mx-auto max-w-7xl px-6 pb-20">
+        <hr className="my-12 border-gray-200" />
+        <h2 className="mb-8 font-heading text-2xl font-bold tracking-widest text-gray-900">
+          HOẠT ĐỘNG SỔ CÁI GẦN ĐÂY
+        </h2>
+        <DataTable transactions={transactions} />
+      </div>
     </div>
   )
 }

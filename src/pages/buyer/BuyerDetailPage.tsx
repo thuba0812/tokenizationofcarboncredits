@@ -52,7 +52,7 @@ export default function BuyerDetailPage() {
                 {wallet.address ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}` : '0x742...'}
               </span>
               <span className="border-l border-gray-300 pl-3 font-heading text-sm tracking-widest text-gray-600">
-                {wallet.balance || '1.25'} ETH
+                {wallet.usdtBalance || '0.00'} USDT
               </span>
             </div>
           )}
@@ -117,7 +117,7 @@ export default function BuyerDetailPage() {
                     <th className="px-5 py-3 text-left font-heading text-xs font-bold tracking-widest text-gray-400">TOKEN ID</th>
                     <th className="px-5 py-3 text-left font-heading text-xs font-bold tracking-widest text-gray-400">MÃ TÍN CHỈ</th>
                     <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">SỐ LƯỢNG ĐĂNG BÁN</th>
-                    <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">GIÁ</th>
+                    <th className="px-5 py-3 text-center font-heading text-xs font-bold tracking-widest text-gray-400">GIÁ (USDT)</th>
                     <th className="px-5 py-3 text-left font-heading text-xs font-bold tracking-widest text-gray-400">VÍ SELLER</th>
                   </tr>
                 </thead>
@@ -188,10 +188,10 @@ export default function BuyerDetailPage() {
       </div>
 
       <Footer />
-      <BuyModal 
-        isOpen={buyOpen} 
-        onClose={() => setBuyOpen(false)} 
-        project={project} 
+      <BuyModal
+        isOpen={buyOpen}
+        onClose={() => setBuyOpen(false)}
+        project={project}
         listings={projectListings}
       />
     </div>

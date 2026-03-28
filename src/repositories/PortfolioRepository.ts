@@ -94,7 +94,7 @@ export class PortfolioRepository extends BaseRepository<any> {
     return credits
   }
 
-  async getTransactions(walletId: number): Promise<Transaction[]> {
+  async getTransactions(walletId: number, provider?: any): Promise<Transaction[]> {
     // 1. Fetch base logs
     const { data: logs, error } = await this.client
       .from('TOKEN_ACTIVITY_LOGS')
@@ -118,19 +118,26 @@ export class PortfolioRepository extends BaseRepository<any> {
     const purchaseIds = logs.filter(l => l.reference_type === 'PURCHASE' && l.reference_id).map(l => l.reference_id)
     const retirementIds = logs.filter(l => l.reference_type === 'RETIREMENT' && l.reference_id).map(l => l.reference_id)
 
-    // 3. Fetch hashes in parallel
-    const [listings, purchases, retirements] = await Promise.all([
-      listingIds.length > 0 ? this.client.from('LISTINGS').select('listing_id, listing_tx_hash').in('listing_id', listingIds) : Promise.resolve({ data: [] }),
+    // 3. Fetch hashes and prices in parallel
+    const [listings, purchases, retirements, purchaseItems] = await Promise.all([
+      listingIds.length > 0 ? this.client.from('LISTINGS').select('listing_id, listing_tx_hash, project_vintage_id').in('listing_id', listingIds) : Promise.resolve({ data: [] }),
       purchaseIds.length > 0 ? this.client.from('PURCHASES').select('purchase_id, purchase_tx_hash').in('purchase_id', purchaseIds) : Promise.resolve({ data: [] }),
-      retirementIds.length > 0 ? this.client.from('RETIREMENTS').select('retirement_id, retirement_tx_hash').in('retirement_id', retirementIds) : Promise.resolve({ data: [] })
+      retirementIds.length > 0 ? this.client.from('RETIREMENTS').select('retirement_id, retirement_tx_hash').in('retirement_id', retirementIds) : Promise.resolve({ data: [] }),
+      purchaseIds.length > 0 ? this.client.from('PURCHASE_ITEMS').select('purchase_id, listing_id, unit_price, purchased_amount').in('purchase_id', purchaseIds) : Promise.resolve({ data: [] })
     ])
 
     const listingMap = new Map(listings.data?.map(l => [l.listing_id, l.listing_tx_hash]))
     const purchaseMap = new Map(purchases.data?.map(p => [p.purchase_id, p.purchase_tx_hash]))
     const retirementMap = new Map(retirements.data?.map(r => [r.retirement_id, r.retirement_tx_hash]))
 
-    // 4. Map to DTO
-    return (logs as any[]).map((row) => {
+    // Map listing_id to vintage_id for cross-referencing
+    const listingToVintage = new Map(listings.data?.map(l => [l.listing_id, l.project_vintage_id]))
+
+    // 4. Map and Enhance with Blockchain data
+    const txs: Transaction[] = []
+    const { formatUnits } = await import('ethers')
+
+    for (const row of logs as any[]) {
       let type: 'mint' | 'sell' | 'request' | 'retire' = 'request'
       if (row.activity_type === 'MINT') type = 'mint'
       else if (row.activity_type === 'PURCHASE') type = 'sell'
@@ -149,7 +156,21 @@ export class PortfolioRepository extends BaseRepository<any> {
         txHash = retirementMap.get(row.reference_id) || '0x...'
       }
 
-      return {
+      // Calculate USDT Amount for PURCHASES
+      let usdtAmount = 0
+      if (row.activity_type === 'PURCHASE' && row.reference_type === 'PURCHASE') {
+        const items = purchaseItems.data || []
+        // Find the item within this purchase that matches our vintage
+        const match = items.find(item => 
+          item.purchase_id === row.reference_id && 
+          listingToVintage.get(item.listing_id) === row.project_vintage_id
+        )
+        if (match) {
+          usdtAmount = Math.abs(row.delta_amount) * Number(match.unit_price)
+        }
+      }
+
+      const tx: Transaction = {
         id: row.activity_id.toString(),
         date: new Date(row.created_at).toLocaleDateString('vi-VN'),
         txHash: txHash || '0x...',
@@ -157,8 +178,35 @@ export class PortfolioRepository extends BaseRepository<any> {
         projectCode,
         amount: row.delta_amount,
         type,
+        status: 'Success',
+        usdtAmount: usdtAmount > 0 ? usdtAmount : undefined,
+        value: `${Math.abs(row.delta_amount)} Tokens`
       }
-    })
+
+      // Enhance with blockchain details if provider is available
+      if (provider && txHash && txHash !== '0x...') {
+        try {
+          const receipt = await provider.getTransactionReceipt(txHash)
+          if (receipt) {
+            tx.blockNumber = receipt.blockNumber
+            tx.from = receipt.from
+            tx.to = receipt.to || receipt.contractAddress || undefined
+            tx.status = receipt.status === 1 ? 'Success' : 'Failed'
+            
+            // Calculate Gas Fee (Gas Used * Gas Price)
+            const gasPrice = receipt.gasPrice || 0n
+            const gasUsed = receipt.gasUsed || 0n
+            tx.gasFee = formatUnits(gasUsed * gasPrice, 18)
+          }
+        } catch (e) {
+          console.error(`Error fetching receipt for ${txHash}:`, e)
+        }
+      }
+
+      txs.push(tx)
+    }
+
+    return txs
   }
 
   async getCertificates(organizationId: number): Promise<Certificate[]> {

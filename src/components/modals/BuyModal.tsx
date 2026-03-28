@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Wallet, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import Modal from '../Modal'
 import type { Project } from '../../types'
@@ -18,18 +18,11 @@ interface BuyModalProps {
 
 export default function BuyModal({ isOpen, onClose, project, listings }: BuyModalProps) {
   const [quantities, setQuantities] = useState<Record<number, number>>({})
-  const [usdtBalance, setUsdtBalance] = useState<string | null>(null)
   const txState = useContractTransaction()
   const { wallet } = useWallet()
   const [buySuccess, setBuySuccess] = useState(false)
   const [buyTxHash, setBuyTxHash] = useState<string | null>(null)
 
-  // Load USDT balance khi modal mở
-  useEffect(() => {
-    if (isOpen && wallet.isConnected && isContractConfigured()) {
-      contractService.getUSDTBalance().then(setUsdtBalance).catch(() => setUsdtBalance(null));
-    }
-  }, [isOpen, wallet.isConnected]);
 
   if (!project) return null
 
@@ -40,6 +33,8 @@ export default function BuyModal({ isOpen, onClose, project, listings }: BuyModa
     const num = Math.max(0, parseInt(val) || 0)
     setQuantities(prev => ({ ...prev, [listingId]: num }))
   }
+
+  const isAnyInvalid = tokenListings.some(t => (quantities[t.listingId] || 0) > t.available)
 
   const subtotal = tokenListings.reduce((sum, t) => {
     const qty = quantities[t.listingId] ?? 0
@@ -73,23 +68,37 @@ export default function BuyModal({ isOpen, onClose, project, listings }: BuyModa
             </tr>
           </thead>
           <tbody>
-            {tokenListings.map(t => (
-              <tr key={t.listingId} className="border-b border-gray-50 last:border-0">
-                <td className="px-4 py-3 font-bold text-gray-900">{t.vintageYear}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{t.available} token</td>
-                <td className="px-4 py-3 font-bold text-gray-900">{t.pricePerToken?.toFixed(2) ?? '—'}</td>
-                <td className="px-4 py-3 text-right">
-                  <input
-                    type="number"
-                    min={0}
-                    max={t.available}
-                    value={quantities[t.listingId] ?? 0}
-                    onChange={e => handleQtyChange(t.listingId, e.target.value)}
-                    className="w-20 border border-gray-200 rounded bg-green-50 text-center text-sm font-medium text-gray-900 py-1 focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                  />
-                </td>
-              </tr>
-            ))}
+            {tokenListings.map(t => {
+              const qty = quantities[t.listingId] || 0
+              const isInvalid = qty > t.available
+              return (
+                <tr key={t.listingId} className={`border-b border-gray-50 last:border-0 ${isInvalid ? 'bg-red-50/30' : ''}`}>
+                  <td className="px-4 py-3 font-bold text-gray-900">{t.vintageYear}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{t.available} token</td>
+                  <td className="px-4 py-3 font-bold text-gray-900">{t.pricePerToken?.toFixed(2) ?? '—'}</td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex flex-col items-end gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        value={qty}
+                        onChange={e => handleQtyChange(t.listingId, e.target.value)}
+                        className={`w-24 rounded text-center text-sm font-bold py-1.5 transition-all duration-200 focus:outline-none focus:ring-2 ${
+                          isInvalid 
+                            ? 'border-red-500 bg-red-50 text-red-600 focus:ring-red-200' 
+                            : 'border-gray-200 bg-green-50 text-gray-900 focus:ring-green-100'
+                        }`}
+                      />
+                      {isInvalid && (
+                        <span className="text-[10px] font-bold text-red-500 uppercase tracking-tighter animate-pulse">
+                          Vượt quá giới hạn!
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -106,19 +115,22 @@ export default function BuyModal({ isOpen, onClose, project, listings }: BuyModa
         </div>
       </div>
 
-      {/* USDT Balance */}
-      {usdtBalance !== null && (
-        <div className="flex justify-between items-center bg-blue-50 border border-blue-200 rounded px-4 py-2 mb-4">
-          <span className="text-xs text-blue-600 font-heading tracking-widest font-bold">SỐ DƯ USDT</span>
-          <span className="font-heading font-bold text-sm text-blue-700">{Number(usdtBalance).toFixed(2)} USDT</span>
-        </div>
-      )}
 
       {/* Total */}
       <div className="flex justify-between items-center bg-green-50 border border-green-200 rounded px-4 py-3 mb-5">
         <span className="font-heading font-bold text-sm tracking-widest text-green-700">TỔNG CỘNG</span>
         <span className="font-heading font-bold text-xl text-green-700">{subtotal.toFixed(2)} USDT</span>
       </div>
+
+      {/* General Error Message */}
+      {isAnyInvalid && (
+        <div className="flex items-center gap-2 bg-red-100 border border-red-200 rounded px-4 py-2.5 mb-4 text-red-700">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span className="text-xs font-bold uppercase tracking-widest">
+            Vui lòng điều chỉnh số lượng hợp lệ (tối đa tồn kho)
+          </span>
+        </div>
+      )}
 
       {/* Transaction status */}
       {txState.status === 'error' && (
@@ -144,15 +156,16 @@ export default function BuyModal({ isOpen, onClose, project, listings }: BuyModa
       {/* Action button */}
       {!buySuccess ? (
         <button
-          disabled={subtotal === 0 || txState.isLoading}
+          disabled={subtotal === 0 || txState.isLoading || isAnyInvalid}
           onClick={async () => {
-            if (subtotal === 0) return;
+            if (subtotal === 0 || isAnyInvalid) return;
 
             if (isContractConfigured()) {
               const buyItems = tokenListings
                 .filter(t => (quantities[t.listingId] || 0) > 0)
                 .map(t => ({
                   listingId: t.listingId,
+                  onchainListingId: t.onchainListingId,
                   amount: quantities[t.listingId],
                   price: t.pricePerToken,
                   vintageId: t.vintageId
@@ -169,7 +182,7 @@ export default function BuyModal({ isOpen, onClose, project, listings }: BuyModa
                   label: 'Mua Carbon Credit',
                   run: () => contractService.buyByProject(
                     project.code,
-                    buyItems.map(i => i.listingId),
+                    buyItems.map(i => i.onchainListingId),
                     buyItems.map(i => i.amount)
                   )
                 }
@@ -187,15 +200,14 @@ export default function BuyModal({ isOpen, onClose, project, listings }: BuyModa
 
                 setBuySuccess(true);
                 setBuyTxHash(result.txHash);
-                // Refresh balance
-                contractService.getUSDTBalance().then(setUsdtBalance).catch(() => { });
+
               }
             } else {
               // Chưa config contract → chỉ alert
               alert('Smart contract chưa được cấu hình. Vui lòng cập nhật địa chỉ contract.');
             }
           }}
-          className={`w-full font-heading font-bold tracking-widest py-3 flex items-center justify-center gap-2 rounded-sm transition-colors duration-150 ${subtotal > 0 && !txState.isLoading
+          className={`w-full font-heading font-bold tracking-widest py-3 flex items-center justify-center gap-2 rounded-sm transition-colors duration-150 ${subtotal > 0 && !txState.isLoading && !isAnyInvalid
             ? 'bg-green-700 hover:bg-green-800 text-white cursor-pointer'
             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
@@ -230,3 +242,4 @@ export default function BuyModal({ isOpen, onClose, project, listings }: BuyModa
     </Modal>
   )
 }
+

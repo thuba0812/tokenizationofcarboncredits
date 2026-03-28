@@ -302,11 +302,10 @@ export default function ModeratorListPage() {
               <button
                 key={value}
                 onClick={() => setPage(value)}
-                className={`w-8 h-8 font-heading font-bold text-sm rounded border transition-colors cursor-pointer ${
-                  value === currentPage
+                className={`w-8 h-8 font-heading font-bold text-sm rounded border transition-colors cursor-pointer ${value === currentPage
                     ? 'bg-green-700 text-white border-green-700'
                     : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 {value}
               </button>
