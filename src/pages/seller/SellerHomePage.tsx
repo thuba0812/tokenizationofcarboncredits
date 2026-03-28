@@ -59,9 +59,7 @@ export default function SellerHomePage() {
       <div className="mx-auto max-w-7xl px-6 py-10">
         <div className="mb-4 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <h1 className="font-heading text-4xl font-bold tracking-wider text-gray-900">
-              TÀI SẢN CỦA TÔI
-            </h1>
+            <h1 className="font-heading text-4xl font-bold tracking-wider text-gray-900">TÀI SẢN CỦA TÔI</h1>
             <p className="mt-1 text-sm text-gray-500">
               Danh mục dự án carbon đang nằm trong ví hiện tại được ánh xạ từ Supabase.
             </p>

@@ -7,7 +7,7 @@
  * - CarbonMarketplace: list, buy, cancel
  */
 
-import { BrowserProvider, Contract, formatUnits, Interface, parseUnits } from 'ethers';
+import { BrowserProvider, Contract, formatUnits, Interface, JsonRpcProvider, parseUnits } from 'ethers';
 import { CarbonTokenABI } from '../contracts/CarbonTokenABI';
 import { MockUSDTABI } from '../contracts/MockUSDTABI';
 import { CarbonMarketplaceABI } from '../contracts/CarbonMarketplaceABI';
@@ -32,6 +32,10 @@ async function getSigner() {
   return provider.getSigner();
 }
 
+function getReadProvider(): JsonRpcProvider {
+  return new JsonRpcProvider('http://127.0.0.1:8545');
+}
+
 function getCarbonTokenContract(signerOrProvider: any) {
   return new Contract(CARBON_TOKEN_ADDRESS, CarbonTokenABI, signerOrProvider);
 }
@@ -42,6 +46,40 @@ function getMockUSDTContract(signerOrProvider: any) {
 
 function getMarketplaceContract(signerOrProvider: any) {
   return new Contract(MARKETPLACE_ADDRESS, CarbonMarketplaceABI, signerOrProvider);
+}
+
+function parseMarketplaceReceipt(receipt: any) {
+  const iface = new Interface(CarbonMarketplaceABI);
+  const createdListingIds: number[] = [];
+  const updatedListingIds: number[] = [];
+  const cancelledListingIds: number[] = [];
+
+  for (const log of receipt.logs) {
+    try {
+      const parsed = iface.parseLog(log);
+      if (!parsed) continue;
+
+      if (parsed.name === 'ListingCreated') {
+        createdListingIds.push(Number(parsed.args.listingId));
+      }
+
+      if (parsed.name === 'ListingUpdated') {
+        updatedListingIds.push(Number(parsed.args.listingId));
+      }
+
+      if (parsed.name === 'ListingCancelled') {
+        cancelledListingIds.push(Number(parsed.args.listingId));
+      }
+    } catch {
+      // Ignore logs from other contracts.
+    }
+  }
+
+  return {
+    createdListingIds,
+    updatedListingIds,
+    cancelledListingIds,
+  };
 }
 
 // ─── Kiểm tra config ───────────────────────────────────
@@ -141,6 +179,55 @@ export async function createListingsBatch(
   return receipt.hash;
 }
 
+export async function createListingsBatchDetailed(
+  items: { tokenId: number; pricePerUnit: number; amount: number }[]
+): Promise<{ txHash: string; listingIds: number[] }> {
+  assertConfigured();
+  const signer = await getSigner();
+  const marketplace = getMarketplaceContract(signer);
+
+  const tokenIds = items.map((i) => i.tokenId);
+  const prices = items.map((i) => parseUnits(i.pricePerUnit.toString(), USDT_DECIMALS));
+  const amounts = items.map((i) => i.amount);
+
+  const tx = await marketplace.createListingsBatch(tokenIds, prices, amounts);
+  const receipt = await tx.wait();
+  const { createdListingIds } = parseMarketplaceReceipt(receipt);
+
+  return {
+    txHash: receipt.hash,
+    listingIds: createdListingIds,
+  };
+}
+
+export async function getCarbonTokenBalance(tokenId: number, walletAddress?: string): Promise<number> {
+  assertConfigured();
+  const provider = getReadProvider();
+  const carbonToken = getCarbonTokenContract(provider);
+  const targetWallet = walletAddress || await (await getSigner()).getAddress();
+  const balance = await carbonToken.balanceOf(targetWallet, tokenId);
+  return Number(balance);
+}
+
+export async function updateListingDetailed(
+  listingId: number,
+  newPrice: number,
+  newAmount: number
+): Promise<{ txHash: string; listingId: number }> {
+  assertConfigured();
+  const signer = await getSigner();
+  const marketplace = getMarketplaceContract(signer);
+
+  const tx = await marketplace.updateListing(listingId, parseUnits(newPrice.toString(), USDT_DECIMALS), newAmount);
+  const receipt = await tx.wait();
+  const { updatedListingIds } = parseMarketplaceReceipt(receipt);
+
+  return {
+    txHash: receipt.hash,
+    listingId: updatedListingIds[0] ?? listingId,
+  };
+}
+
 /**
  * Hủy listing
  */
@@ -152,6 +239,21 @@ export async function cancelListing(listingId: number): Promise<string> {
   const tx = await marketplace.cancelListing(listingId);
   const receipt = await tx.wait();
   return receipt.hash;
+}
+
+export async function cancelListingDetailed(listingId: number): Promise<{ txHash: string; listingId: number }> {
+  assertConfigured();
+  const signer = await getSigner();
+  const marketplace = getMarketplaceContract(signer);
+
+  const tx = await marketplace.cancelListing(listingId);
+  const receipt = await tx.wait();
+  const { cancelledListingIds } = parseMarketplaceReceipt(receipt);
+
+  return {
+    txHash: receipt.hash,
+    listingId: cancelledListingIds[0] ?? listingId,
+  };
 }
 
 // ═══════════════════════════════════════════════════════
@@ -289,7 +391,7 @@ export async function mintProjectYearBatch(
  */
 export async function getTokenInfo(tokenId: number) {
   assertConfigured();
-  const provider = getProvider();
+  const provider = getReadProvider();
   const carbonToken = getCarbonTokenContract(provider);
   const info = await carbonToken.getTokenInfo(tokenId);
   return {
@@ -309,7 +411,7 @@ export async function getTokenInfo(tokenId: number) {
  */
 export async function getTokenBalance(address: string, tokenId: number): Promise<number> {
   assertConfigured();
-  const provider = getProvider();
+  const provider = getReadProvider();
   const carbonToken = getCarbonTokenContract(provider);
   const balance = await carbonToken.balanceOf(address, tokenId);
   return Number(balance);
@@ -320,7 +422,7 @@ export async function getTokenBalance(address: string, tokenId: number): Promise
  */
 export async function getListingOnChain(listingId: number) {
   assertConfigured();
-  const provider = getProvider();
+  const provider = getReadProvider();
   const marketplace = getMarketplaceContract(provider);
   const listing = await marketplace.getListing(listingId);
   return {
@@ -340,7 +442,7 @@ export async function getListingOnChain(listingId: number) {
  */
 export async function getTotalEnterpriseBurned(address: string): Promise<number> {
   assertConfigured();
-  const provider = getProvider();
+  const provider = getReadProvider();
   const carbonToken = getCarbonTokenContract(provider);
   const burned = await carbonToken.totalEnterpriseBurned(address);
   return Number(burned);
@@ -351,7 +453,7 @@ export async function getTotalEnterpriseBurned(address: string): Promise<number>
  */
 export async function tokenExistsOnChain(tokenId: number): Promise<boolean> {
   assertConfigured();
-  const provider = getProvider();
+  const provider = getReadProvider();
   const carbonToken = getCarbonTokenContract(provider);
   return carbonToken.tokenExists(tokenId);
 }

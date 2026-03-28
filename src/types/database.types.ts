@@ -68,8 +68,11 @@ export interface ListingDB {
   seller_wallet_id: number;
   price_per_unit: number;
   listed_amount: number;
-  available_amount: number;
   listing_status: string;
+  listing_tx_hash?: string;
+  onchain_listing_id?: number | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface TokenBalanceDB {
