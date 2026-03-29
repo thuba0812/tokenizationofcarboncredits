@@ -34,7 +34,7 @@ export default function BurnPage() {
   const [burnTxHash, setBurnTxHash] = useState<string | null>(null);
   const [lastRetirementId, setLastRetirementId] = useState<number | null>(null);
   const [lastBurntItems, setLastBurntItems] = useState<
-    { project: any; qty: number; creditCode: string }[]
+    { project: any; qty: number; certificateCode: string }[]
   >([]);
   const txState = useContractTransaction();
 
@@ -53,8 +53,10 @@ export default function BurnPage() {
     async function fetchTotalBurned() {
       if (organizationId) {
         try {
+          const currentYear = new Date().getFullYear();
           const burned = await portfolioRepository.getTotalRetiredAmount(
             organizationId,
+            currentYear,
           );
           setTotalBurned(burned);
         } catch (e) {
@@ -350,7 +352,7 @@ export default function BurnPage() {
                       }
 
                       let localTxHash = "0x00";
-                      let retirementId: number | null = null;
+                      let retirementResult: { retirementId: number; detailCodes: { vintageId: number; retirementCode: string }[] } | null = null;
                       const result = await txState.execute([
                         {
                           label: "Tiêu hủy token trên blockchain",
@@ -366,12 +368,12 @@ export default function BurnPage() {
                         {
                           label: "Cập nhật sổ cái hệ thống",
                           run: async () => {
-                            const id = await portfolioRepository.retireTokens(
+                            const data = await portfolioRepository.retireTokens(
                               wallet.address || "",
                               itemsObj,
                               localTxHash,
                             );
-                            retirementId = id;
+                            retirementResult = data;
                           },
                         },
                       ]);
@@ -389,14 +391,18 @@ export default function BurnPage() {
                           const token = proj?.tableTokens.find(
                             (t) => t.vintageId === item.vintageId,
                           );
+                          const certificateCode = retirementResult?.detailCodes.find(
+                            (code) => Number(code.vintageId) === Number(item.vintageId),
+                          )?.retirementCode;
+
                           return {
                             project: proj,
                             qty: item.quantity,
-                            creditCode: token?.tokenCode || "UNKNOWN",
+                            certificateCode: certificateCode || `RTM-${token?.tokenCode || "UNKNOWN"}-0000`,
                           };
                         });
                         setLastBurntItems(burntDetails);
-                        setLastRetirementId(retirementId);
+                        setLastRetirementId(retirementResult?.retirementId || null);
 
                         setShowConfirmBurn(false);
                         setShowSuccessBurn(true);
@@ -474,7 +480,7 @@ export default function BurnPage() {
                       retirementId={lastRetirementId}
                       projectName={item.project?.name || "Loading..."}
                       projectCode={item.project?.code || "Loading..."}
-                      creditCode={item.creditCode}
+                      certificateCode={item.certificateCode}
                       quantity={item.qty}
                       date={new Date().toLocaleDateString("vi-VN")}
                     />
@@ -913,3 +919,4 @@ export default function BurnPage() {
     </div>
   );
 }
+

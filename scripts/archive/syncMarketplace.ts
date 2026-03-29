@@ -8,8 +8,8 @@ const CARBON_TOKEN_ADDRESS = "0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575";
 const MARKETPLACE_ADDRESS = "0xCD8a1C3ba11CF5ECfa6267617243239504a98d90";
 const USDT_DECIMALS = 6;
 
-const supabaseUrl = "https://ghltbczennngxphbhxfy.supabase.co";
-const supabaseKey = "sb_publishable_ExXmhsbp9cqKvjVNU_UCDw_u46IwPMk";
+const supabaseUrl = "";
+const supabaseKey = "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function main() {

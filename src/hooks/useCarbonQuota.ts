@@ -13,12 +13,14 @@ export function useCarbonQuota(organizationId: number | null) {
         return
       }
 
+      const currentYear = new Date().getFullYear()
       setLoading(true)
       try {
         const { data, error } = await supabase
           .from('CARBON_QUOTAS')
           .select('allocated_quota')
           .eq('organization_id', organizationId)
+          .eq('quota_year', currentYear)
 
         if (error) {
           console.error('Error fetching carbon quota:', error)

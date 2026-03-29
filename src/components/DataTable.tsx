@@ -6,6 +6,9 @@ interface DataTableProps {
 }
 
 export default function DataTable({ transactions }: DataTableProps) {
+  const formatCurrency = (value: number) =>
+    value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
   if (transactions.length === 0) {
     return (
       <div className="py-12 border border-dashed border-gray-200 rounded-lg text-center">
@@ -55,6 +58,11 @@ export default function DataTable({ transactions }: DataTableProps) {
               }`}>
                 {(tx.amount || 0) > 0 ? '+' : ''}{(tx.amount || 0).toLocaleString()} TOKEN
               </div>
+              {tx.usdtAmount !== undefined && (tx.amount || 0) > 0 && (
+                <div className="text-sm font-black text-red-600">
+                  -{formatCurrency(tx.usdtAmount)} USDC
+                </div>
+              )}
             </div>
           </div>
 
@@ -107,12 +115,7 @@ export default function DataTable({ transactions }: DataTableProps) {
                  <span className="font-bold uppercase tracking-wider">Gas Fee:</span>
                  <span className="text-gray-600 font-mono">{tx.gasFee ? `${(Number(tx.gasFee)).toFixed(6)} ETH` : '0.000000 ETH'}</span>
                </div>
-               {tx.usdtAmount !== undefined ? (
-                 <div className="flex items-center gap-1">
-                   <span className="font-bold uppercase tracking-wider text-green-700">USDT Used:</span>
-                   <span className="text-green-800 font-bold">{tx.usdtAmount.toLocaleString()} USDT</span>
-                 </div>
-               ) : tx.value && (
+               {tx.value && (
                  <div className="flex items-center gap-1">
                    <span className="font-bold uppercase tracking-wider">Detail:</span>
                    <span className="text-gray-600 font-mono">{tx.value}</span>

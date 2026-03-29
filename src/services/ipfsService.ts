@@ -1,6 +1,6 @@
 import { supabase } from '../database/supabase';
 
-const PINATA_JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiJjYjBhZDZiOC01YjIwLTQ4MGItYTU0Zi1hZGExNTcxZTIwZDMiLCJlbWFpbCI6InRydWNuaHQyMzQxNkBzdC51ZWwuZWR1LnZuIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBpbl9wb2xpY3kiOnsicmVnaW9ucyI6W3siZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiRlJBMSJ9LHsiZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiTllDMSJ9XSwidmVyc2lvbiI6MX0sIm1mYV9lbmFibGVkIjpmYWxzZSwic3RhdHVzIjoiQUNUSVZFIn0sImF1dGhlbnRpY2F0aW9uVHlwZSI6InNjb3BlZEtleSIsInNjb3BlZEtleUtleSI6ImE1YjEwMGM0ZTJhYTA4NDBkYWY0Iiwic2NvcGVkS2V5U2VjcmV0IjoiZTU0Y2M3MDU4MGRiNTYwOTVjYjRjMmQzNmExMmZhMGY0Mjc3ZTAwYWRmNjM5MmIzM2M0OTJhMjUxOTcxMzhhOSIsImV4cCI6MTgwNjEzODQxMn0.ybWw6iIPxbnnyVhADsorefWrsdWhF9BW7ocU0MmGZBM';
+const PINATA_JWT = import.meta.env.VITE_PINATA_JWT;
 
 /**
  * Upload a blob to IPFS via Pinata and register it in the database
@@ -11,6 +11,10 @@ export async function uploadCertificateToIPFS(
   retirementId: number
 ): Promise<{ success: boolean; cid?: string; error?: string }> {
   try {
+    if (!PINATA_JWT) {
+      throw new Error('Missing VITE_PINATA_JWT in environment variables');
+    }
+
     const formData = new FormData();
     formData.append('file', blob, fileName);
 
@@ -72,14 +76,14 @@ export async function uploadCertificateToIPFS(
 /**
  * Check if a certificate is already pinpointed on IPFS
  */
-export async function getCertificateIPFS(retirementId: number, creditCode: string): Promise<string | null> {
+export async function getCertificateIPFS(retirementId: number, certificateCode: string): Promise<string | null> {
   const { data, error } = await supabase
     .from('IPFS_FILES')
     .select('cid')
     .eq('object_type', 'RETIREMENT')
     .eq('object_id', retirementId)
     .eq('file_type', 'RETIREMENT_CERTIFICATE')
-    .ilike('file_name', `%${creditCode}%`)
+    .ilike('file_name', `%${certificateCode}%`)
     .maybeSingle();
 
   if (error || !data) return null;

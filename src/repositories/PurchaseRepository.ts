@@ -102,36 +102,7 @@ export class PurchaseRepository extends BaseRepository<any> {
           if (updateListingError) console.error('Error updating listing amount:', updateListingError);
         }
 
-        // c. Cập nhật TOKEN_BALANCES cho người mua
-        const { data: existingBalance, error: fetchBalanceError } = await this.client
-          .from('TOKEN_BALANCES')
-          .select('balance_id, current_amount')
-          .eq('wallet_id', buyerWalletId)
-          .eq('project_vintage_id', item.vintageId)
-          .maybeSingle()
-
-        if (fetchBalanceError) {
-          console.error('Error fetching existing balance:', fetchBalanceError);
-        } else if (existingBalance) {
-          const { error: updateBalanceError } = await this.client
-            .from('TOKEN_BALANCES')
-            .update({
-              current_amount: Number(existingBalance.current_amount) + item.amount
-            })
-            .eq('balance_id', existingBalance.balance_id)
-          if (updateBalanceError) console.error('Error updating buyer balance:', updateBalanceError);
-        } else {
-          const { error: insertBalanceError } = await this.client
-            .from('TOKEN_BALANCES')
-            .insert({
-              wallet_id: buyerWalletId,
-              project_vintage_id: item.vintageId,
-              current_amount: item.amount
-            })
-          if (insertBalanceError) console.error('Error inserting buyer balance:', insertBalanceError);
-        }
-
-        // d. Ghi log TOKEN_ACTIVITY_LOGS cho người mua (NHẬN)
+        // c. Ghi log TOKEN_ACTIVITY_LOGS cho nguoi mua (NHAN)
         const { error: buyerLogError } = await this.client
           .from('TOKEN_ACTIVITY_LOGS')
           .insert({
@@ -144,7 +115,7 @@ export class PurchaseRepository extends BaseRepository<any> {
           })
         if (buyerLogError) console.error('Error creating buyer log:', buyerLogError);
 
-        // e. Ghi log TOKEN_ACTIVITY_LOGS cho người bán (TRỪ ĐI)
+        // d. Ghi log TOKEN_ACTIVITY_LOGS cho nguoi ban (TRU DI)
         const { data: sellerListingData, error: fetchSellerError } = await this.client
           .from('LISTINGS')
           .select('seller_wallet_id')
@@ -177,3 +148,4 @@ export class PurchaseRepository extends BaseRepository<any> {
 }
 
 export const purchaseRepository = new PurchaseRepository()
+

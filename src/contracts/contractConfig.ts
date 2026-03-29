@@ -13,13 +13,13 @@
 // ─── Contract Addresses ─────────────────────────────────
 
 /** Địa chỉ contract CarbonToken (ERC1155) */
-export const CARBON_TOKEN_ADDRESS: string = '0x53fF7837667a7158AFCAf3e93e3BCd9eD5bd0c8F';
+export const CARBON_TOKEN_ADDRESS: string = '0xC093c361eFF9547c1C9Ee9a5FfF2c1AB508867E5';
 
 /** Địa chỉ contract MockUSDT (ERC20) */
-export const MOCK_USDT_ADDRESS: string = '0xA20192c45deFB2FeB44a396c6Cef4a073cA296aB';
+export const MOCK_USDT_ADDRESS: string = '0xFa1e5575Cf246DCD0Db83b2664fA20546289b335';
 
 /** Địa chỉ contract CarbonMarketplace */
-export const MARKETPLACE_ADDRESS: string = '0xF968995D66e80abf90C7F9c925cf0B78e49534dc';
+export const MARKETPLACE_ADDRESS: string = '0xC087721F43603129FAAB6022Fa3d778AF3bf52f6';
 
 // ─── Network Config ─────────────────────────────────────
 

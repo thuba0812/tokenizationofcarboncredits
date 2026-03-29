@@ -416,10 +416,14 @@ CREATE TABLE public."RETIREMENT_DETAILS" (
   retirement_detail_id   BIGSERIAL PRIMARY KEY,
   retirement_id          BIGINT         NOT NULL,
   project_vintage_id     BIGINT         NOT NULL,
+  retirement_code        VARCHAR(64)    NOT NULL,
   retired_amount         NUMERIC(20,4)  NOT NULL,
 
   CONSTRAINT uq_retirement_details_retirement_project_vintage
     UNIQUE (retirement_id, project_vintage_id),
+
+  CONSTRAINT uq_retirement_details_retirement_code
+    UNIQUE (retirement_code),
 
   CONSTRAINT fk_retirement_details_retirement
     FOREIGN KEY (retirement_id)

@@ -7,7 +7,7 @@ interface IPFSAutoUploaderProps {
   retirementId: number;
   projectName: string;
   projectCode: string;
-  creditCode: string;
+  certificateCode: string;
   quantity: number;
   date: string;
 }
@@ -16,7 +16,7 @@ export default function IPFSAutoUploader({
   retirementId,
   projectName,
   projectCode,
-  creditCode,
+  certificateCode,
   quantity,
   date
 }: IPFSAutoUploaderProps) {
@@ -30,7 +30,7 @@ export default function IPFSAutoUploader({
       
       try {
         // Check if already uploaded first
-        const existingCid = await getCertificateIPFS(retirementId, creditCode);
+        const existingCid = await getCertificateIPFS(retirementId, certificateCode);
         if (existingCid) {
           setStatus('success');
           return;
@@ -46,7 +46,7 @@ export default function IPFSAutoUploader({
         if (!blob) throw new Error('Capture failed');
 
         setStatus('uploading');
-        const fileName = `Certificate-RTM-${creditCode}.png`;
+        const fileName = `Certificate-${certificateCode}.png`;
         const result = await uploadCertificateToIPFS(blob, fileName, retirementId);
 
         if (result.success) {
@@ -63,7 +63,7 @@ export default function IPFSAutoUploader({
     };
 
     processUpload();
-  }, [retirementId, creditCode]);
+  }, [retirementId, certificateCode]);
 
   // Parse date
   let day = '...', month = '...', year = '...';
@@ -76,7 +76,7 @@ export default function IPFSAutoUploader({
     }
   }
 
-  const certificateId = `RTM-${creditCode}`;
+  const certificateId = certificateCode;
 
   return (
     <div className="mt-4 p-4 border rounded-lg bg-gray-50 flex items-center justify-between">

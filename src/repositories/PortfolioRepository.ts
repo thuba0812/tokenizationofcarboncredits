@@ -174,15 +174,25 @@ export class PortfolioRepository extends BaseRepository<any> {
       listingIds.length > 0 ? this.client.from('LISTINGS').select('listing_id, listing_tx_hash, project_vintage_id').in('listing_id', listingIds) : Promise.resolve({ data: [] }),
       purchaseIds.length > 0 ? this.client.from('PURCHASES').select('purchase_id, purchase_tx_hash').in('purchase_id', purchaseIds) : Promise.resolve({ data: [] }),
       retirementIds.length > 0 ? this.client.from('RETIREMENTS').select('retirement_id, retirement_tx_hash').in('retirement_id', retirementIds) : Promise.resolve({ data: [] }),
-      purchaseIds.length > 0 ? this.client.from('PURCHASE_ITEMS').select('purchase_id, listing_id, unit_price, purchased_amount').in('purchase_id', purchaseIds) : Promise.resolve({ data: [] })
+      purchaseIds.length > 0
+        ? this.client
+            .from('PURCHASE_ITEMS')
+            .select(`
+              purchase_id,
+              listing_id,
+              unit_price,
+              purchased_amount,
+              LISTINGS (
+                project_vintage_id
+              )
+            `)
+            .in('purchase_id', purchaseIds)
+        : Promise.resolve({ data: [] })
     ])
 
     const listingMap = new Map(listings.data?.map(l => [l.listing_id, l.listing_tx_hash]))
     const purchaseMap = new Map(purchases.data?.map(p => [p.purchase_id, p.purchase_tx_hash]))
     const retirementMap = new Map(retirements.data?.map(r => [r.retirement_id, r.retirement_tx_hash]))
-
-    // Map listing_id to vintage_id for cross-referencing
-    const listingToVintage = new Map(listings.data?.map(l => [l.listing_id, l.project_vintage_id]))
 
     // 4. Map and Enhance with Blockchain data
     const txs: Transaction[] = []
@@ -208,18 +218,22 @@ export class PortfolioRepository extends BaseRepository<any> {
         txHash = retirementMap.get(row.reference_id) || '0x...'
       }
 
-      // Calculate USDT Amount for PURCHASES
+      // Calculate USDT amount matched to the current purchase item/vintage row.
       let usdtAmount = 0
       if (row.activity_type === 'PURCHASE' && row.reference_type === 'PURCHASE') {
-        const items = purchaseItems.data || []
-        // Find the item within this purchase that matches our vintage
-        const match = items.find(item => 
-          item.purchase_id === row.reference_id && 
-          listingToVintage.get(item.listing_id) === row.project_vintage_id
-        )
-        if (match) {
-          usdtAmount = Math.abs(row.delta_amount) * Number(match.unit_price)
-        }
+        const matchedItems = (purchaseItems.data || []).filter((item: any) => {
+          const samePurchase = Number(item.purchase_id) === Number(row.reference_id)
+          const listingRel = Array.isArray(item.LISTINGS) ? item.LISTINGS[0] : item.LISTINGS
+          const listingVintageId = Number(listingRel?.project_vintage_id || 0)
+          const sameVintage = Number(listingVintageId) === Number(row.project_vintage_id)
+          return samePurchase && sameVintage
+        })
+
+        usdtAmount = matchedItems.reduce((sum: number, item: any) => {
+          const purchasedAmount = Number(item.purchased_amount || 0)
+          const unitPrice = Number(item.unit_price || 0)
+          return sum + (purchasedAmount * unitPrice)
+        }, 0)
       }
 
       const tx: Transaction = {
@@ -268,6 +282,7 @@ export class PortfolioRepository extends BaseRepository<any> {
         *,
         RETIREMENT_DETAILS (
           *,
+          retirement_code,
           PROJECT_VINTAGES (
             credit_code,
             PROJECTS ( project_id, project_code, project_name )
@@ -287,10 +302,11 @@ export class PortfolioRepository extends BaseRepository<any> {
       for (const det of cert.RETIREMENT_DETAILS || []) {
         const project = det.PROJECT_VINTAGES?.PROJECTS
         const creditCode = det.PROJECT_VINTAGES?.credit_code || 'UNKNOWN'
+        const retirementCode = det.retirement_code || `RTM-${creditCode}`
         if (!project) continue
 
         certs.push({
-          id: `RTM-${creditCode}`,
+          id: retirementCode,
           projectId: project.project_id.toString(),
           projectName: project.project_name,
           projectCode: project.project_code,
@@ -304,15 +320,22 @@ export class PortfolioRepository extends BaseRepository<any> {
     return certs
   }
 
-  async getTotalRetiredAmount(organizationId: number): Promise<number> {
+  async getTotalRetiredAmount(organizationId: number, year = new Date().getFullYear()): Promise<number> {
+    const startOfYear = `${year}-01-01T00:00:00.000Z`
+    const startOfNextYear = `${year + 1}-01-01T00:00:00.000Z`
+
     const { data, error } = await this.client
       .from('RETIREMENTS')
       .select(`
+        created_at,
         RETIREMENT_DETAILS (
           retired_amount
         )
       `)
       .eq('organization_id', organizationId)
+      .eq('retirement_status', 'COMPLETED')
+      .gte('created_at', startOfYear)
+      .lt('created_at', startOfNextYear)
 
     if (error) {
       console.error('Error fetching total retired amount:', error)
@@ -328,7 +351,11 @@ export class PortfolioRepository extends BaseRepository<any> {
     return total
   }
 
-  async retireTokens(walletAddress: string, items: { vintageId: number; quantity: number }[], txHash: string): Promise<number | null> {
+  async retireTokens(
+    walletAddress: string,
+    items: { vintageId: number; quantity: number }[],
+    txHash: string
+  ): Promise<{ retirementId: number; detailCodes: { vintageId: number; retirementCode: string }[] } | null> {
     const { data: walletData, error: walletError } = await this.client
       .from('WALLETS')
       .select('wallet_id, organization_id')
@@ -359,6 +386,22 @@ export class PortfolioRepository extends BaseRepository<any> {
       .limit(1)
     const quotaId = quotaData && quotaData.length > 0 ? quotaData[0].quota_id : null
 
+    const uniqueVintageIds = Array.from(new Set(items.map((item) => Number(item.vintageId))))
+    const { data: vintageRows, error: vintageError } = await this.client
+      .from('PROJECT_VINTAGES')
+      .select('project_vintage_id, credit_code')
+      .in('project_vintage_id', uniqueVintageIds)
+
+    if (vintageError) {
+      console.error('Error fetching project vintage credit codes:', vintageError)
+      return null
+    }
+
+    const creditCodeByVintageId = new Map<number, string>()
+    for (const row of (vintageRows as any[]) || []) {
+      creditCodeByVintageId.set(Number(row.project_vintage_id), String(row.credit_code || 'UNKNOWN'))
+    }
+
     const { data: retirement, error: retError } = await this.client
       .from('RETIREMENTS')
       .insert({
@@ -378,17 +421,49 @@ export class PortfolioRepository extends BaseRepository<any> {
     }
 
     const retirementId = retirement.retirement_id
+    const nextSequenceByVintage = new Map<number, number>()
+    const detailCodes: { vintageId: number; retirementCode: string }[] = []
 
     for (const item of items) {
       const qtyVal = Number(item.quantity)
+      const vintageId = Number(item.vintageId)
+      const creditCode = creditCodeByVintageId.get(vintageId) || `UNKNOWN-${vintageId}`
+
+      let nextSeq = nextSequenceByVintage.get(vintageId)
+      if (!nextSeq) {
+        const { data: existingDetails, error: codeFetchError } = await this.client
+          .from('RETIREMENT_DETAILS')
+          .select('retirement_code')
+          .eq('project_vintage_id', vintageId)
+
+        if (codeFetchError) {
+          console.error('Error fetching retirement code sequence:', codeFetchError)
+        }
+
+        const escapedCode = creditCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const codePattern = new RegExp(`^RTM-${escapedCode}-(\\d{4})$`)
+        const maxSeq = ((existingDetails as any[]) || []).reduce((max, row) => {
+          const code = String(row?.retirement_code || '')
+          const matched = code.match(codePattern)
+          const tail = matched ? Number(matched[1]) : 0
+          return Number.isFinite(tail) && tail > max ? tail : max
+        }, 0)
+
+        nextSeq = maxSeq + 1
+      }
+
+      const retirementCode = `RTM-${creditCode}-${String(nextSeq).padStart(4, '0')}`
+      nextSequenceByVintage.set(vintageId, nextSeq + 1)
 
       const { error: detailError } = await this.client.from('RETIREMENT_DETAILS').insert({
         retirement_id: retirementId,
-        project_vintage_id: item.vintageId,
+        project_vintage_id: vintageId,
         retired_amount: qtyVal,
+        retirement_code: retirementCode,
       })
 
       if (detailError) console.error('Error inserting retirement detail:', detailError)
+      else detailCodes.push({ vintageId, retirementCode })
 
       // The TOKEN_ACTIVITY_LOGS insert will trigger the balance update in the DB.
       // We do NOT update TOKEN_BALANCES manually here to avoid double-subtraction.
@@ -404,7 +479,7 @@ export class PortfolioRepository extends BaseRepository<any> {
       if (logError) console.error('Error inserting activity log:', logError)
     }
 
-    return retirementId
+    return { retirementId, detailCodes }
   }
 }
 

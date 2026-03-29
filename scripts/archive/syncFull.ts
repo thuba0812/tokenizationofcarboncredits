@@ -10,8 +10,8 @@ const MARKETPLACE_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
 const USDT_DECIMALS = 6;
 const TARGET_WALLET = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
 
-const supabaseUrl = "https://ghltbczennngxphbhxfy.supabase.co";
-const supabaseKey = "sb_publishable_ExXmhsbp9cqKvjVNU_UCDw_u46IwPMk";
+const supabaseUrl = "";
+const supabaseKey = "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function main() {
