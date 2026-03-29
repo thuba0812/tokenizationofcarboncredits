@@ -60,7 +60,7 @@ export default function DataTable({ transactions }: DataTableProps) {
               </div>
               {tx.usdtAmount !== undefined && (tx.amount || 0) > 0 && (
                 <div className="text-sm font-black text-red-600">
-                  -{formatCurrency(tx.usdtAmount)} USDC
+                  -{formatCurrency(tx.usdtAmount)} USDT
                 </div>
               )}
             </div>
