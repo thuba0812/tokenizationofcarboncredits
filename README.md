@@ -92,3 +92,34 @@ và tự cập nhật địa chỉ vào `src/contracts/contractConfig.ts`.
 - `scripts/archive/`: script cũ đã lưu trữ
 - `src/database/`: schema SQL và cấu hình Supabase
 
+## Cấu trúc code chi tiết
+
+```text
+tokenizationofcarboncredits/
+├─ contracts/
+│  ├─ token.sol                 # ERC1155 CarbonToken (mint/burn/token info)
+│  ├─ market.sol                # Marketplace (listing/buy/cancel)
+│  └─ mockusdt.sol              # Mock USDT cho test
+├─ src/
+│  ├─ pages/
+│  │  ├─ buyer/                 # Giao diện buyer
+│  │  ├─ seller/                # Giao diện seller (sell/burn/certificate)
+│  │  └─ moderator/             # Giao diện moderator
+│  ├─ components/               # UI components + modals
+│  ├─ repositories/             # Truy vấn Supabase theo domain
+│  ├─ services/                 # Contract service, IPFS service, DB service
+│  ├─ hooks/                    # Hooks nghiệp vụ (portfolio, listings, wallet...)
+│  ├─ contracts/                # ABI + địa chỉ contract frontend
+│  ├─ database/                 # Supabase schema + SQL scripts
+│  └─ contexts/                 # React contexts (wallet)
+├─ scripts/
+│  ├─ deploy.cjs                # Deploy contract chính
+│  ├─ deployment/               # Biến thể script deploy
+│  ├─ sync/                     # Script sync state DB/on-chain
+│  ├─ maintenance/              # Script bảo trì/check/fix
+│  ├─ testing/                  # Script test thủ công
+│  └─ archive/                  # Script nháp
+├─ hardhat.config.cjs
+├─ package.json
+└─ .env.example
+```
