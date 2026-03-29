@@ -1,73 +1,94 @@
-# React + TypeScript + Vite
+# Tokenization Of Carbon Credits
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Ứng dụng quản lý và giao dịch tín chỉ carbon gồm:
 
-Currently, two official plugins are available:
+- Frontend: React + TypeScript + Vite
+- Smart contracts: Hardhat + Solidity (ERC1155 CarbonToken, Marketplace, MockUSDT)
+- Database: Supabase (lưu dự án, listing, giao dịch, burn/retirement, IPFS metadata)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Chức năng chính
 
-## React Compiler
+- Kết nối ví (MetaMask)
+- Xem danh mục dự án/tín chỉ carbon
+- Đăng bán và mua tín chỉ
+- Tiêu hủy tín chỉ (burn) và sinh chứng nhận
+- Upload chứng nhận lên IPFS (Pinata)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Yêu cầu môi trường
 
-## Expanding the ESLint configuration
+- Node.js 18+
+- npm
+- MetaMask
+- Tài khoản Supabase
+- (Tuỳ chọn) RPC Sepolia để deploy/testnet ổn định
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Cấu hình biến môi trường
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Tạo file `.env` từ `.env.example`:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cp .env.example .env
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Điền các biến:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_PINATA_JWT=
+PRIVATE_KEY=
 ```
+
+Lưu ý:
+
+- `VITE_PINATA_JWT` dùng cho upload IPFS từ frontend.
+- `PRIVATE_KEY` và `SEPOLIA_RPC_URL` dùng cho deploy Hardhat.
+- Không commit `.env`.
+
+## Cài đặt và chạy local
+
+```bash
+npm install
+npm run dev
+```
+
+Mặc định Vite chạy tại `http://localhost:5173`.
+
+## Build production
+
+```bash
+npm run build
+npm run preview
+```
+
+## Smart contract (Hardhat)
+
+Compile:
+
+```bash
+npm run hh:compile
+```
+
+Deploy Sepolia:
+
+```bash
+npm run deploy:sepolia
+```
+
+Scripts này deploy:
+
+- `MockUSDT`
+- `CarbonToken`
+- `CarbonMarketplace`
+
+và tự cập nhật địa chỉ vào `src/contracts/contractConfig.ts`.
+
+## Cấu trúc thư mục chính
+
+- `src/`: frontend app
+- `contracts/`: solidity contracts
+- `scripts/deploy.cjs`: deploy contracts
+- `scripts/sync/`, `scripts/maintenance/`: script vận hành/sync dữ liệu
+- `scripts/archive/`: script cũ đã lưu trữ
+- `src/database/`: schema SQL và cấu hình Supabase
+

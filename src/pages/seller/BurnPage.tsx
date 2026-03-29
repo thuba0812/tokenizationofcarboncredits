@@ -274,8 +274,8 @@ export default function BurnPage() {
 
       {/* Confirmation Modal */}
       {showConfirmBurn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-300">
             <div className="p-10 flex flex-col items-center text-center">
               <div className="w-24 h-24 bg-gray-100 flex items-center justify-center mb-10">
                 <div className="w-12 h-12 border-2 border-black flex items-center justify-center relative">
@@ -449,8 +449,8 @@ export default function BurnPage() {
 
       {/* Success Modal */}
       {showSuccessBurn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-300">
             <div className="p-10 flex flex-col items-center text-center">
               <div className="w-24 h-24 bg-green-200 flex items-center justify-center mb-10">
                 <div className="w-14 h-14 bg-green-800 rounded-full flex items-center justify-center">
@@ -919,4 +919,5 @@ export default function BurnPage() {
     </div>
   );
 }
+
 
