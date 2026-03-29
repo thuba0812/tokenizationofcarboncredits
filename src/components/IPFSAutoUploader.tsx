@@ -55,9 +55,9 @@ export default function IPFSAutoUploader({
           setError(result.error || 'Upload failed');
           setStatus('error');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'Upload failed');
         setStatus('error');
       }
     };

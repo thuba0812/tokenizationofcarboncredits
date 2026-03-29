@@ -30,8 +30,7 @@ typechain-types/
 *.njsproj
 *.sln
 *.sw?
-node_modules/
-dist/
-dist-ssr/
 coverage/
-*.log
+
+# Hardhat logs
+hardhat.log

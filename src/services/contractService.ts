@@ -8,6 +8,8 @@
  */
 
 import { BrowserProvider, Contract, formatUnits, Interface, JsonRpcProvider, parseUnits } from 'ethers';
+import type { ContractRunner } from 'ethers';
+import type { EthereumProvider } from '../types/ethereum';
 import { CarbonTokenABI } from '../contracts/CarbonTokenABI';
 import { MockUSDTABI } from '../contracts/MockUSDTABI';
 import { CarbonMarketplaceABI } from '../contracts/CarbonMarketplaceABI';
@@ -16,44 +18,46 @@ import {
   MOCK_USDT_ADDRESS,
   MARKETPLACE_ADDRESS,
   USDT_DECIMALS,
+  RPC_URL,
   isContractConfigured,
 } from '../contracts/contractConfig';
 
 // ─── Helpers ────────────────────────────────────────────
 
-function getProvider(): BrowserProvider {
-  const eth = (window as any).ethereum;
+function getEthereum(): EthereumProvider {
+  const eth = window.ethereum;
   if (!eth) throw new Error('MetaMask chưa được cài đặt');
-  return new BrowserProvider(eth);
+  return eth;
+}
+
+function getProvider(): BrowserProvider {
+  return new BrowserProvider(getEthereum());
 }
 
 async function getSigner() {
-  const provider = getProvider();
-  return provider.getSigner();
+  return getProvider().getSigner();
 }
 
 function getReadProvider(): JsonRpcProvider | BrowserProvider {
-  const eth = (window as any).ethereum;
-  if (eth) {
-    return new BrowserProvider(eth);
-  }
-  return new JsonRpcProvider('https://rpc2.sepolia.org');
+  const eth = window.ethereum;
+  if (eth) return new BrowserProvider(eth);
+  return new JsonRpcProvider(RPC_URL);
 }
 
-function getCarbonTokenContract(signerOrProvider: any) {
-  return new Contract(CARBON_TOKEN_ADDRESS, CarbonTokenABI, signerOrProvider);
+function getCarbonTokenContract(runner: ContractRunner) {
+  return new Contract(CARBON_TOKEN_ADDRESS, CarbonTokenABI, runner);
 }
 
-function getMockUSDTContract(signerOrProvider: any) {
-  return new Contract(MOCK_USDT_ADDRESS, MockUSDTABI, signerOrProvider);
+function getMockUSDTContract(runner: ContractRunner) {
+  return new Contract(MOCK_USDT_ADDRESS, MockUSDTABI, runner);
 }
 
-function getMarketplaceContract(signerOrProvider: any) {
-  return new Contract(MARKETPLACE_ADDRESS, CarbonMarketplaceABI, signerOrProvider);
+function getMarketplaceContract(runner: ContractRunner) {
+  return new Contract(MARKETPLACE_ADDRESS, CarbonMarketplaceABI, runner);
 }
 
 async function assertSellerHasEnoughTokenBalance(
-  signer: any,
+  signer: ContractRunner & { getAddress: () => Promise<string> },
   items: { tokenId: number; amount: number }[]
 ) {
   const seller = await signer.getAddress();
@@ -76,7 +80,7 @@ async function assertSellerHasEnoughTokenBalance(
   console.groupEnd();
 }
 
-function parseMarketplaceReceipt(receipt: any) {
+function parseMarketplaceReceipt(receipt: { logs: ReadonlyArray<{ topics: ReadonlyArray<string>; data: string }> }) {
   const iface = new Interface(CarbonMarketplaceABI);
   const createdListingIds: number[] = [];
   const updatedListingIds: number[] = [];
@@ -193,26 +197,6 @@ export async function createListing(
  */
 export async function createListingsBatch(
   items: { tokenId: number; pricePerUnit: number; amount: number }[]
-): Promise<string> {
-  assertConfigured();
-  const signer = await getSigner();
-  const marketplace = getMarketplaceContract(signer);
-  await assertSellerHasEnoughTokenBalance(
-    signer,
-    items.map((i) => ({ tokenId: i.tokenId, amount: i.amount }))
-  );
-
-  const tokenIds = items.map((i) => i.tokenId);
-  const prices = items.map((i) => parseUnits(i.pricePerUnit.toString(), USDT_DECIMALS));
-  const amounts = items.map((i) => i.amount);
-
-  const tx = await marketplace.createListingsBatch(tokenIds, prices, amounts);
-  const receipt = await tx.wait();
-  return receipt.hash;
-}
-
-export async function createListingsBatchDetailed(
-  items: { tokenId: number; pricePerUnit: number; amount: number }[]
 ): Promise<{ txHash: string; listingIds: number[] }> {
   assertConfigured();
   const signer = await getSigner();
@@ -235,6 +219,9 @@ export async function createListingsBatchDetailed(
     listingIds: createdListingIds,
   };
 }
+
+/** @deprecated Use createListingsBatch() – returns same shape now */
+export const createListingsBatchDetailed = createListingsBatch;
 
 export async function getCarbonTokenBalance(tokenId: number, walletAddress?: string): Promise<number> {
   assertConfigured();
@@ -265,19 +252,9 @@ export async function updateListingDetailed(
 }
 
 /**
- * Hủy listing
+ * Hủy listing – trả về txHash + listingId đã hủy
  */
-export async function cancelListing(listingId: number): Promise<string> {
-  assertConfigured();
-  const signer = await getSigner();
-  const marketplace = getMarketplaceContract(signer);
-
-  const tx = await marketplace.cancelListing(listingId);
-  const receipt = await tx.wait();
-  return receipt.hash;
-}
-
-export async function cancelListingDetailed(listingId: number): Promise<{ txHash: string; listingId: number }> {
+export async function cancelListing(listingId: number): Promise<{ txHash: string; listingId: number }> {
   assertConfigured();
   const signer = await getSigner();
   const marketplace = getMarketplaceContract(signer);
@@ -291,6 +268,9 @@ export async function cancelListingDetailed(listingId: number): Promise<{ txHash
     listingId: cancelledListingIds[0] ?? listingId,
   };
 }
+
+/** @deprecated Use cancelListing() – returns same shape now */
+export const cancelListingDetailed = cancelListing;
 
 // ═══════════════════════════════════════════════════════
 //  BUYER - Mua token từ Marketplace

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase nested joins return untyped results */
 import { BaseRepository } from './BaseRepository'
 import type { ListingDB } from '../types/database.types'
 import type { Project } from '../types'

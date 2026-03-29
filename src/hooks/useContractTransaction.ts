@@ -1,5 +1,11 @@
 import { useState, useCallback } from 'react'
 
+/** Error shape from ethers.js / MetaMask RPC */
+interface EthersError extends Error {
+  code?: number | string
+  reason?: string
+}
+
 export type TransactionStatus =
   | 'idle'
   | 'approving'
@@ -69,7 +75,8 @@ export function useContractTransaction() {
         })
 
         return { success: true, txHash: lastTxHash }
-      } catch (err: any) {
+      } catch (thrown: unknown) {
+        const err = thrown as EthersError
         let errorMessage = 'Lỗi không xác định'
 
         if (err.code === 4001 || err.code === 'ACTION_REJECTED') {

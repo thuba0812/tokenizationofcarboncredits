@@ -34,7 +34,7 @@ export default function BurnPage() {
   const [burnTxHash, setBurnTxHash] = useState<string | null>(null);
   const [lastRetirementId, setLastRetirementId] = useState<number | null>(null);
   const [lastBurntItems, setLastBurntItems] = useState<
-    { project: any; qty: number; creditCode: string }[]
+    { project: { name?: string; code?: string } | undefined; qty: number; creditCode: string }[]
   >([]);
   const txState = useContractTransaction();
 

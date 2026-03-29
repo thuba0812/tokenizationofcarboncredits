@@ -11,7 +11,7 @@ export function usePortfolio(walletId: number) {
     setLoading(true);
     try {
       const { BrowserProvider } = await import('ethers');
-      const eth = (window as any).ethereum;
+      const eth = window.ethereum;
       const provider = eth ? new BrowserProvider(eth) : undefined;
 
       const [c, t] = await Promise.all([

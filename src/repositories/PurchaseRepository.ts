@@ -1,6 +1,7 @@
 import { BaseRepository } from './BaseRepository'
+import type { ListingDB } from '../types/database.types'
 
-export class PurchaseRepository extends BaseRepository<any> {
+export class PurchaseRepository extends BaseRepository<ListingDB> {
   constructor() {
     super('PURCHASES')
   }

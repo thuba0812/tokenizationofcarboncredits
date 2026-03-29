@@ -1,8 +1,14 @@
 import { useState, useCallback, useEffect } from 'react'
 import { BrowserProvider } from 'ethers'
+import type { Contract } from 'ethers'
 import type { WalletState, UserRole } from '../types'
 import { supabase } from '../database/supabase'
-import { CHAIN_ID, NETWORK_NAME } from '../contracts/contractConfig'
+import { CHAIN_ID, NETWORK_NAME, RPC_URL } from '../contracts/contractConfig'
+
+/** Error shape from MetaMask / ethers.js RPC calls */
+interface EthersError extends Error {
+  code?: number | string
+}
 
 export function useMetaMask() {
   const [wallet, setWallet] = useState<WalletState>({
@@ -16,7 +22,7 @@ export function useMetaMask() {
   const [isInitializing, setIsInitializing] = useState(true)
 
   const switchNetwork = useCallback(async () => {
-    const eth = (window as any).ethereum
+    const eth = window.ethereum
     if (!eth) return false
 
     const hexChainId = `0x${CHAIN_ID.toString(16)}`
@@ -26,7 +32,8 @@ export function useMetaMask() {
         params: [{ chainId: hexChainId }],
       })
       return true
-    } catch (error: any) {
+    } catch (thrown: unknown) {
+      const error = thrown as EthersError
       if (error.code === 4902) {
         try {
           await eth.request({
@@ -35,7 +42,7 @@ export function useMetaMask() {
               {
                 chainId: hexChainId,
                 chainName: NETWORK_NAME,
-                rpcUrls: ['http://127.0.0.1:8545/'],
+                rpcUrls: [RPC_URL],
                 nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
               },
             ],
@@ -63,7 +70,11 @@ export function useMetaMask() {
   // Helper to fetch account details and set state
   const loadAccountData = useCallback(async (address: string, shouldRedirect: boolean = false) => {
     try {
-      const eth = (window as any).ethereum
+      const eth = window.ethereum
+      if (!eth) {
+        setError('MetaMask chưa được cài đặt')
+        return false
+      }
       const provider = new BrowserProvider(eth)
       const networkError = await getNetworkError(provider)
       if (networkError) {
@@ -94,8 +105,8 @@ export function useMetaMask() {
           .ilike('wallet_address', address)
           .single()
 
-        const orgData = data?.ORGANIZATIONS as any
-        assignedRole = (Array.isArray(orgData) ? orgData[0]?.organization_type : orgData?.organization_type) || 'GUEST'
+        const orgData = data?.ORGANIZATIONS as { organization_type?: string } | { organization_type?: string }[] | null
+        assignedRole = ((Array.isArray(orgData) ? orgData[0]?.organization_type : orgData?.organization_type) || 'GUEST') as UserRole
       } catch (dbError) {
         console.error('Error fetching role from DB:', dbError)
       }
@@ -121,7 +132,8 @@ export function useMetaMask() {
       }
 
       return true
-    } catch (err: any) {
+    } catch (thrown: unknown) {
+      const err = thrown as EthersError
       console.error(err)
       setError(err.message || 'Lỗi lấy thông tin tài khoản')
       return false
@@ -137,7 +149,7 @@ export function useMetaMask() {
   // Check if MetaMask is installed
   const isMetaMaskInstalled = useCallback(() => {
     if (typeof window === 'undefined') return false
-    const eth = (window as any).ethereum
+    const eth = window.ethereum
     return !!eth && eth.isMetaMask === true
   }, [])
 
@@ -151,7 +163,7 @@ export function useMetaMask() {
         return false
       }
 
-      const eth = (window as any).ethereum
+      const eth = window.ethereum!
       let provider = new BrowserProvider(eth)
       let networkError = await getNetworkError(provider)
 
@@ -182,7 +194,8 @@ export function useMetaMask() {
       await loadAccountData(address, shouldRedirect) // Redirect on explicit connect only if requested
 
       return true
-    } catch (err: any) {
+    } catch (thrown: unknown) {
+      const err = thrown as EthersError
       if (err.code === -32002) {
         setError('MetaMask connection request đang pending')
       } else if (err.code === 4001) {
@@ -197,7 +210,7 @@ export function useMetaMask() {
   // Disconnect wallet
   const disconnect = useCallback(async () => {
     try {
-      const eth = (window as any).ethereum
+      const eth = window.ethereum
 
       // Revoke all permissions from MetaMask
       if (eth && eth.request) {
@@ -208,7 +221,7 @@ export function useMetaMask() {
           // Some MetaMask versions don't support this, that's okay
         })
       }
-    } catch (err) {
+    } catch {
       // Silently fail if revoke doesn't work
     }
 
@@ -232,12 +245,12 @@ export function useMetaMask() {
       return
     }
 
-    const eth = (window as any).ethereum
+    const eth = window.ethereum!
 
     // Check if already connected (F5 refresh)
     const init = async () => {
       try {
-        const accounts = await eth.request({ method: 'eth_accounts' })
+        const accounts = await eth.request({ method: 'eth_accounts' }) as string[]
         if (accounts && accounts.length > 0) {
           const provider = new BrowserProvider(eth)
           const networkError = await getNetworkError(provider)
@@ -274,8 +287,8 @@ export function useMetaMask() {
     eth.on('chainChanged', handleChainChanged)
 
     // Listen for contract events to refresh balance
-    let usdtContract: any
-    let marketContract: any
+    let usdtContract: Contract | undefined
+    let marketContract: Contract | undefined
 
     const setupListeners = async () => {
       try {

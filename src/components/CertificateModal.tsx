@@ -68,9 +68,9 @@ export default function CertificateModal({ certificate, onClose }: CertificateMo
       } else {
         setUploadError(result.error || 'Upload failed');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setUploadError(err.message);
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setIsUploading(false);
     }

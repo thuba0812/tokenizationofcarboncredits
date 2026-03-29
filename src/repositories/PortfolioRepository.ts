@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase nested joins return untyped results */
 import { BaseRepository } from './BaseRepository'
+import type { TokenBalanceDB } from '../types/database.types'
 import type { PurchasedCredit, Transaction, Certificate, TokenYear } from '../types'
 import { projectRepository } from './ProjectRepository'
 
-export class PortfolioRepository extends BaseRepository<any> {
+export class PortfolioRepository extends BaseRepository<TokenBalanceDB> {
   constructor() {
     super('TOKEN_BALANCES')
   }

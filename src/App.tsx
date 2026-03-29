@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
+import type { WalletState } from './types'
 import Navbar from './components/Navbar'
 import SellPage from './pages/seller/SellPage'
 import CertificatePage from './pages/seller/CertificatePage'
@@ -14,12 +15,19 @@ import ModeratorDetailPage from './pages/moderator/ModeratorDetailPage'
 import { useMetaMask } from './hooks/useMetaMask'
 import { WalletProvider } from './contexts/WalletContext'
 
+interface AppContentProps {
+  wallet: WalletState;
+  handleConnect: () => void;
+  defaultPath: string;
+  error: string;
+}
+
 function AppContent({
   wallet,
   handleConnect,
   defaultPath,
   error,
-}: any) {
+}: AppContentProps) {
   const location = useLocation()
   const isFullscreenPage = 
     location.pathname === '/seller/burn/destroy' || 

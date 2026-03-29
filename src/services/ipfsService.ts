@@ -63,9 +63,10 @@ export async function uploadCertificateToIPFS(
     }
 
     return { success: true, cid };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown IPFS error';
     console.error('IPFS Upload Error:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: message };
   }
 }
 
