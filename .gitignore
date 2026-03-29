@@ -7,10 +7,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+node_modules/
+dist/
+dist-ssr/
 *.local
+.env
+.env.*
+!.env.example
+
+# Hardhat
+artifacts/
+cache/
+typechain/
+typechain-types/
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +31,7 @@ dist-ssr
 *.sln
 *.sw?
 node_modules/
+dist/
+dist-ssr/
+coverage/
+*.log

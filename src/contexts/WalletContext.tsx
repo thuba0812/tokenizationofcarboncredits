@@ -7,13 +7,14 @@ interface WalletContextType {
   error: string
   isInitializing: boolean
   connect: (shouldRedirect?: boolean) => Promise<boolean>
+  refreshBalance: () => Promise<void>
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined)
 
-export function WalletProvider({ children, wallet, error, isInitializing, connect }: { children: ReactNode; wallet: WalletState; error: string; isInitializing: boolean, connect: (shouldRedirect?: boolean) => Promise<boolean> }) {
+export function WalletProvider({ children, wallet, error, isInitializing, connect, refreshBalance }: { children: ReactNode; wallet: WalletState; error: string; isInitializing: boolean, connect: (shouldRedirect?: boolean) => Promise<boolean>, refreshBalance: () => Promise<void> }) {
   return (
-    <WalletContext.Provider value={{ wallet, error, isInitializing, connect }}>
+    <WalletContext.Provider value={{ wallet, error, isInitializing, connect, refreshBalance }}>
       {children}
     </WalletContext.Provider>
   )

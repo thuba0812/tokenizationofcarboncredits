@@ -19,7 +19,17 @@ export interface TokenYear {
   tokenCode: string
   quantity: number
   available: number
-  price?: number // USDT per token
+  listedAmount?: number
+  soldAmount?: number
+  price?: number | null // USDT per token
+  currentListingId?: number | null
+  onchainListingId?: number | null
+  listingTxHash?: string | null
+  status?: string
+  tokenId?: number | null
+  mintTxHash?: string | null
+  mintedAmount?: number | null
+  mintedAt?: string | null
 }
 
 // ─── CDM Project ────────────────────────────────────────────────────────────
@@ -49,12 +59,13 @@ export interface Project {
 export interface WalletState {
   address: string | null
   balance: string
+  usdtBalance: string
   isConnected: boolean
   role: UserRole
 }
 
 // ─── Transaction ────────────────────────────────────────────────────────────
-export type TransactionType = 'mint' | 'request' | 'sell'
+export type TransactionType = 'mint' | 'request' | 'sell' | 'retire'
 export interface Transaction {
   id: string
   date: string
@@ -63,6 +74,14 @@ export interface Transaction {
   projectCode: string
   amount?: number
   type: TransactionType
+  // New fields for detailed view
+  blockNumber?: number
+  from?: string
+  to?: string
+  value?: string // Token value description
+  usdtAmount?: number // Actual USDT value
+  gasFee?: string // ETH value
+  status?: 'Success' | 'Failed' | 'Pending'
 }
 
 // ─── Purchased Carbon Credit ────────────────────────────────────────────────
@@ -80,4 +99,5 @@ export interface Certificate {
   projectCode: string
   date: string      // Format: DD/MM/YYYY
   quantity: number
+  retirementId?: number
 }

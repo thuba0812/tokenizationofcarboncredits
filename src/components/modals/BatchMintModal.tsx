@@ -1,132 +1,229 @@
-import { RotateCw, Check, Hourglass } from 'lucide-react';
+import { Check, Hourglass, RotateCw, ScanQrCode, TriangleAlert } from 'lucide-react'
+import Modal from '../Modal'
 
-interface BatchInfo {
-  id: number;
-  range: string;
-  status: 'SUCCESS' | 'PROCESSING' | 'PENDING' | 'ERROR';
-  txHash?: string;
-  message?: string;
+export interface MintBatchStatus {
+  id: number
+  range: string
+  status: 'SUCCESS' | 'PROCESSING' | 'PENDING' | 'ERROR'
+  txHash?: string
+  message?: string
 }
 
 interface BatchMintModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  totalProjects: number;
-  batches: BatchInfo[];
+  isOpen: boolean
+  onClose: () => void
+  totalRows: number
+  mintableRows: number
+  batches: MintBatchStatus[]
+  onConfirm: () => Promise<void> | void
+  isRunning: boolean
+  statusText?: string
+  error?: string | null
 }
 
-export default function BatchMintModal({ isOpen, onClose, totalProjects, batches }: BatchMintModalProps) {
-  if (!isOpen) return null;
+export default function BatchMintModal({
+  isOpen,
+  onClose,
+  totalRows,
+  mintableRows,
+  batches,
+  onConfirm,
+  isRunning,
+  statusText,
+  error,
+}: BatchMintModalProps) {
+  if (!isOpen) return null
 
-  const isAllDone = batches.every(b => b.status === 'SUCCESS');
+  const canConfirm = mintableRows > 0 && !isRunning
+  const isAllDone = batches.length > 0 && batches.every((batch) => batch.status === 'SUCCESS')
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 text-center">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col">
-        {/* Header */}
-        <div className="p-8 pt-10 flex flex-col items-center">
-          <h2 className="font-heading font-bold text-3xl tracking-tight text-black mb-4 uppercase text-center">
+    <Modal isOpen={isOpen} onClose={onClose} title="" maxWidth="max-w-5xl">
+      <div className="-mx-6 -mt-4">
+        <div className="px-10 pt-10 pb-8 text-center">
+          <h2 className="font-heading text-5xl font-bold tracking-tight text-slate-800">
             XÁC NHẬN PHÁT HÀNH TOKEN THEO LÔ
           </h2>
-          <div className="text-center max-w-md">
-            <p className="text-gray-600 text-sm leading-relaxed">
-              Hệ thống đã chuẩn bị dữ liệu cho <span className="text-[#1b5e20] font-bold">156 dự án</span> đã được phê duyệt.
+
+          <div className="mx-auto mt-10 max-w-4xl text-left">
+            <p className="text-2xl leading-relaxed text-slate-600">
+              Hệ thống đã chuẩn bị dữ liệu cho{' '}
+              <span className="font-bold text-green-700">{mintableRows} mã tín chỉ</span> đã được
+              phê duyệt.
             </p>
-            <p className="text-gray-400 text-[10px] mt-1 uppercase tracking-widest font-bold">
-              Để đảm bảo an toàn, danh sách được chia thành 4 lô giao dịch (50 + 50 + 50 + {totalProjects - 150}).
+            <p className="mt-2 text-2xl leading-relaxed text-slate-500">
+              Để đảm bảo an toàn, danh sách được chia thành {batches.length || 1} lô giao dịch.
             </p>
           </div>
         </div>
 
-        {/* Batch List */}
-        <div className="px-8 pb-8 space-y-3">
-          {batches.map((batch) => (
-            <div 
-              key={batch.id}
-              className={`relative flex items-center justify-between p-4 px-6 border rounded-lg transition-all duration-300 ${
-                batch.status === 'SUCCESS' ? 'bg-[#f1f8f5] border-l-4 border-l-[#1b5e20] border-gray-100' :
-                batch.status === 'PROCESSING' ? 'bg-white border-l-4 border-l-black border-gray-200 shadow-md scale-[1.02] z-10' :
-                'bg-[#f8f9fa] border-l-4 border-l-gray-300 border-gray-100 opacity-60'
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                {/* Status Icon Wrapper */}
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  batch.status === 'SUCCESS' ? 'bg-[#1b5e20] text-white' :
-                  batch.status === 'PROCESSING' ? 'bg-black text-white' :
-                  'bg-[#e9ecef] text-gray-400'
-                }`}>
-                  {batch.status === 'SUCCESS' ? <Check className="w-5 h-5 stroke-[3px]" /> :
-                   batch.status === 'PROCESSING' ? <RotateCw className="w-5 h-5 animate-spin" /> :
-                   <Hourglass className="w-5 h-5" />}
-                </div>
-
-                <div className="text-left">
-                  <div className={`font-heading font-bold text-base ${
-                    batch.status === 'PENDING' ? 'text-gray-500' : 'text-gray-900'
-                  }`}>
-                    Lô {batch.id} (Dự án {batch.range})
-                  </div>
-                  {batch.status === 'SUCCESS' && batch.txHash && (
-                    <div className="flex items-center gap-1 mt-0.5">
-                       <span className="text-[10px] font-bold text-gray-400">TXHASH:</span>
-                       <span className="text-[10px] font-mono text-green-700 bg-green-50 px-1 inline-block">{batch.txHash}</span>
-                    </div>
-                  )}
-                  {batch.status === 'PROCESSING' && (
-                    <div className="flex items-center gap-1 mt-0.5 text-[#1b5e20]">
-                       <div className="w-3.5 h-3.5 border border-[#1b5e20] rounded flex items-center justify-center text-[10px] font-bold">Ξ</div>
-                       <span className="text-[10px] font-bold">Vui lòng xác nhận trên ví Metamask của bạn</span>
-                    </div>
-                  )}
-                  {batch.status === 'PENDING' && (
-                    <div className="text-[10px] text-gray-400 mt-0.5 font-bold uppercase tracking-tighter">
-                       Hệ thống đang chờ lệnh thực thi
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="text-right">
-                 <span className={`font-heading font-bold text-[10px] tracking-widest uppercase ${
-                    batch.status === 'SUCCESS' ? 'text-[#1b5e20]' :
-                    batch.status === 'PROCESSING' ? 'text-black' :
-                    'text-gray-400'
-                 }`}>
-                   {batch.status === 'SUCCESS' ? 'THÀNH CÔNG' :
-                    batch.status === 'PROCESSING' ? 'ĐANG XỬ LÝ...' :
-                    'ĐANG CHỜ'}
-                 </span>
-              </div>
+        <div className="space-y-5 px-10 pb-10">
+          {batches.length === 0 ? (
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 px-8 py-10 text-center text-lg text-slate-500">
+              Chưa có lô nào sẵn sàng để phát hành.
             </div>
+          ) : null}
+
+          {batches.map((batch) => (
+            <BatchCard key={batch.id} batch={batch} />
           ))}
+
+          {statusText ? (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-6 py-4 text-base text-blue-900">
+              {statusText}
+            </div>
+          ) : null}
+
+          {error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-base text-red-800">
+              {error}
+            </div>
+          ) : null}
         </div>
 
-        {/* Footer */}
-        <div className="bg-[#f5f7f5] p-6 pt-10">
-           <div className="flex gap-4 mb-4">
-              <button 
-                onClick={onClose}
-                className="flex-1 py-4 bg-[#e8f5e9] hover:bg-[#c8e6c9] text-[#1b5e20] font-heading font-bold text-sm tracking-[0.2em] rounded border-none transition-colors cursor-pointer uppercase"
-              >
-                HỦY BỎ
-              </button>
-              <button 
-                disabled={!isAllDone}
-                className={`flex-1 py-4 font-heading font-bold text-sm tracking-[0.2em] rounded border-none transition-colors uppercase ${
-                   isAllDone 
-                   ? 'bg-black text-white hover:bg-gray-900 cursor-pointer shadow-md' 
-                   : 'bg-gray-300 text-white cursor-not-allowed'
-                }`}
-              >
-                HOÀN TẤT
-              </button>
-           </div>
-           <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">
-             VUI LÒNG KHÔNG ĐÓNG CỬA SỔ NÀY CHO ĐẾN KHI TẤT CẢ CÁC LÔ ĐƯỢC XÁC NHẬN
-           </p>
+        <div className="bg-[#eef5f0] px-10 py-8">
+          <div className="flex gap-6">
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-3xl bg-[#dff7e1] px-6 py-5 font-heading text-2xl font-bold tracking-wider text-slate-500 transition-colors hover:bg-[#d2f0d5]"
+            >
+              HỦY BỎ
+            </button>
+            <button
+              onClick={() => void onConfirm()}
+              disabled={!canConfirm}
+              className={`flex-1 rounded-3xl px-6 py-5 font-heading text-2xl font-bold tracking-wider text-white transition-colors ${
+                canConfirm ? 'bg-slate-900 hover:bg-slate-800' : 'cursor-not-allowed bg-[#c9cae0] text-white/90'
+              }`}
+            >
+              {isRunning ? 'ĐANG XỬ LÝ' : isAllDone ? 'HOÀN TẤT' : 'BẮT ĐẦU'}
+            </button>
+          </div>
+
+          <p className="mt-8 text-center font-heading text-sm uppercase tracking-[0.32em] text-slate-400">
+            Vui lòng không đóng cửa sổ này cho đến khi tất cả các lô được xác nhận
+          </p>
+          <p className="mt-3 text-center text-sm text-slate-400">
+            Tổng số dòng hiện có trong bảng: {totalRows}
+          </p>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function BatchCard({ batch }: { batch: MintBatchStatus }) {
+  const styles = getBatchStyles(batch.status)
+
+  return (
+    <div className={`rounded-[24px] border-l-[6px] ${styles.wrapper}`}>
+      <div className="flex items-center justify-between gap-6 px-10 py-8">
+        <div className="flex items-center gap-8">
+          <div className={`flex h-20 w-20 items-center justify-center rounded-[22px] ${styles.iconBox}`}>
+            {batch.status === 'SUCCESS' ? (
+              <Check className="h-10 w-10 stroke-[3px]" />
+            ) : batch.status === 'PROCESSING' ? (
+              <RotateCw className="h-10 w-10 animate-spin" />
+            ) : batch.status === 'ERROR' ? (
+              <TriangleAlert className="h-10 w-10" />
+            ) : (
+              <Hourglass className="h-10 w-10" />
+            )}
+          </div>
+
+          <div>
+            <div className={`font-heading text-3xl font-bold ${styles.title}`}>
+              Lô {batch.id} (Dòng {batch.range})
+            </div>
+
+            {batch.status === 'SUCCESS' && batch.txHash ? (
+              <div className="mt-3 flex items-center gap-3">
+                <span className="font-heading text-sm font-bold uppercase tracking-[0.28em] text-[#63a88d]">
+                  Txhash:
+                </span>
+                <span className="rounded-lg bg-[#bcf0db] px-3 py-1 font-mono text-xl text-[#0f766e]">
+                  {shortHash(batch.txHash)}
+                </span>
+              </div>
+            ) : null}
+
+            {batch.status === 'PROCESSING' ? (
+              <div className="mt-3 flex items-center gap-2 text-[#2f8a3b]">
+                <ScanQrCode className="h-5 w-5" />
+                <span className="text-xl">
+                  {batch.message || 'Vui lòng xác nhận trên ví MetaMask của bạn'}
+                </span>
+              </div>
+            ) : null}
+
+            {batch.status === 'PENDING' ? (
+              <div className="mt-2 text-xl text-slate-500">
+                {batch.message || 'Hệ thống đang chờ lệnh thực thi'}
+              </div>
+            ) : null}
+
+            {batch.status === 'ERROR' && batch.message ? (
+              <div className="mt-2 text-lg text-red-700">{batch.message}</div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className={`font-heading text-2xl font-bold uppercase ${styles.statusText}`}>
+          {statusLabel(batch.status)}
         </div>
       </div>
     </div>
-  );
+  )
+}
+
+function getBatchStyles(status: MintBatchStatus['status']) {
+  if (status === 'SUCCESS') {
+    return {
+      wrapper: 'border-[#0b7a53] bg-[#e6f7f2]',
+      iconBox: 'bg-[#6ae7b3] text-[#0b7a53]',
+      title: 'text-slate-800',
+      statusText: 'text-[#0b7a53]',
+    }
+  }
+
+  if (status === 'PROCESSING') {
+    return {
+      wrapper: 'border-[#1d4ed8] bg-white shadow-[0_10px_30px_rgba(15,23,42,0.06)]',
+      iconBox: 'bg-[#2f8a3b] text-white',
+      title: 'text-slate-800',
+      statusText: 'text-[#2f8a3b]',
+    }
+  }
+
+  if (status === 'ERROR') {
+    return {
+      wrapper: 'border-red-500 bg-red-50',
+      iconBox: 'bg-red-100 text-red-700',
+      title: 'text-slate-800',
+      statusText: 'text-red-700',
+    }
+  }
+
+  return {
+    wrapper: 'border-transparent bg-[#f4f6fb] opacity-90',
+    iconBox: 'bg-[#e6ebf8] text-slate-500',
+    title: 'text-slate-500',
+    statusText: 'text-slate-500',
+  }
+}
+
+function statusLabel(status: MintBatchStatus['status']) {
+  const labels: Record<MintBatchStatus['status'], string> = {
+    SUCCESS: 'THÀNH CÔNG',
+    PROCESSING: 'ĐANG XỬ LÝ...',
+    PENDING: 'ĐANG CHỜ',
+    ERROR: 'LỖI',
+  }
+
+  return labels[status]
+}
+
+function shortHash(hash: string) {
+  if (hash.length <= 14) return hash
+  return `${hash.slice(0, 6)}...${hash.slice(-4)}`
 }

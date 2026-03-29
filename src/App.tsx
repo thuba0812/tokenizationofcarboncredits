@@ -17,7 +17,8 @@ import { WalletProvider } from './contexts/WalletContext'
 function AppContent({
   wallet,
   handleConnect,
-  defaultPath
+  defaultPath,
+  error,
 }: any) {
   const location = useLocation()
   const isFullscreenPage = 
@@ -44,6 +45,11 @@ function AppContent({
           onConnect={handleConnect} 
         />
       )}
+      {error ? (
+        <div className="border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm text-amber-900">
+          {error}
+        </div>
+      ) : null}
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Navigate to={defaultPath} replace />} />
@@ -73,7 +79,7 @@ function AppContent({
 }
 
 export default function App() {
-  const { wallet, connect, disconnect, error, isInitializing } = useMetaMask()
+  const { wallet, connect, disconnect, refreshBalance, error, isInitializing } = useMetaMask()
 
   const handleConnect = () => {
     if (wallet.isConnected) {
@@ -102,7 +108,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <WalletProvider wallet={wallet} error={error} isInitializing={isInitializing} connect={connect}>
+      <WalletProvider wallet={wallet} error={error} isInitializing={isInitializing} connect={connect} refreshBalance={refreshBalance}>
         <AppContent 
           wallet={wallet} 
           handleConnect={handleConnect} 

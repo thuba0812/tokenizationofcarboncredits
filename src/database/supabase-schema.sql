@@ -140,7 +140,7 @@ CREATE TABLE public."PROJECT_VINTAGES" (
   credit_code                VARCHAR(100)   NOT NULL,
   verified_co2_reduction     NUMERIC(20,4)  NOT NULL,
   issued_creadit_amount      NUMERIC(20,4)  NOT NULL,
-  status                     VARCHAR(20)    NOT NULL DEFAULT 'MINTING',
+  status                     VARCHAR(20)    NOT NULL DEFAULT 'VERIFIED',
   token_id                   BIGINT,
   mint_tx_hash               VARCHAR(255),
   minted_amount              NUMERIC(20,4),
@@ -160,7 +160,7 @@ CREATE TABLE public."PROJECT_VINTAGES" (
     ON UPDATE CASCADE,
 
   CONSTRAINT chk_project_vintages_status
-    CHECK (status IN ('MINTING', 'MINTED', 'ERROR')),
+    CHECK (status IN ('VERIFIED', 'MINTING', 'MINTED', 'ERROR')),
 
   CONSTRAINT chk_project_vintages_vintage_year
     CHECK (vintage_year >= 1900 AND vintage_year <= 3000),
@@ -184,7 +184,6 @@ CREATE TABLE public."LISTINGS" (
   seller_wallet_id     BIGINT         NOT NULL,
   price_per_unit       NUMERIC(20,6)  NOT NULL,
   listed_amount        NUMERIC(20,4)  NOT NULL,
-  available_amount     NUMERIC(20,4)  NOT NULL,
   listing_status       VARCHAR(20)    NOT NULL DEFAULT 'ACTIVE',
   listing_tx_hash      VARCHAR(255),
   created_at           TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
@@ -209,9 +208,6 @@ CREATE TABLE public."LISTINGS" (
 
   CONSTRAINT chk_listings_listed_amount
     CHECK (listed_amount > 0),
-
-  CONSTRAINT chk_listings_available_amount
-    CHECK (available_amount >= 0 AND available_amount <= listed_amount),
 
   CONSTRAINT chk_listings_listing_status
     CHECK (listing_status IN ('ACTIVE', 'SOLD_OUT', 'CANCELLED', 'INACTIVE'))
@@ -420,10 +416,14 @@ CREATE TABLE public."RETIREMENT_DETAILS" (
   retirement_detail_id   BIGSERIAL PRIMARY KEY,
   retirement_id          BIGINT         NOT NULL,
   project_vintage_id     BIGINT         NOT NULL,
+  retirement_code        VARCHAR(64)    NOT NULL,
   retired_amount         NUMERIC(20,4)  NOT NULL,
 
   CONSTRAINT uq_retirement_details_retirement_project_vintage
     UNIQUE (retirement_id, project_vintage_id),
+
+  CONSTRAINT uq_retirement_details_retirement_code
+    UNIQUE (retirement_code),
 
   CONSTRAINT fk_retirement_details_retirement
     FOREIGN KEY (retirement_id)

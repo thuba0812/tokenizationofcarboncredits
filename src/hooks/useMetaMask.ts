@@ -2,24 +2,89 @@ import { useState, useCallback, useEffect } from 'react'
 import { BrowserProvider } from 'ethers'
 import type { WalletState, UserRole } from '../types'
 import { supabase } from '../database/supabase'
+import { CHAIN_ID, NETWORK_NAME } from '../contracts/contractConfig'
 
 export function useMetaMask() {
   const [wallet, setWallet] = useState<WalletState>({
     address: null,
     balance: '0',
+    usdtBalance: '0',
     isConnected: false,
     role: 'GUEST',
   })
   const [error, setError] = useState<string>('')
   const [isInitializing, setIsInitializing] = useState(true)
 
+  const switchNetwork = useCallback(async () => {
+    const eth = (window as any).ethereum
+    if (!eth) return false
+
+    const hexChainId = `0x${CHAIN_ID.toString(16)}`
+    try {
+      await eth.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: hexChainId }],
+      })
+      return true
+    } catch (error: any) {
+      if (error.code === 4902) {
+        try {
+          await eth.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: hexChainId,
+                chainName: NETWORK_NAME,
+                rpcUrls: ['http://127.0.0.1:8545/'],
+                nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+              },
+            ],
+          })
+          return true
+        } catch (addError) {
+          console.error('Failed to add network', addError)
+          return false
+        }
+      }
+      console.error('Failed to switch network', error)
+      return false
+    }
+  }, [])
+
+  const getNetworkError = useCallback(async (provider: BrowserProvider) => {
+    const network = await provider.getNetwork()
+    const chainId = Number(network.chainId)
+    if (chainId !== CHAIN_ID) {
+      return `MetaMask đang ở sai mạng. Hãy chuyển sang ${NETWORK_NAME} (chainId ${CHAIN_ID}).`
+    }
+    return ''
+  }, [])
+
   // Helper to fetch account details and set state
   const loadAccountData = useCallback(async (address: string, shouldRedirect: boolean = false) => {
     try {
       const eth = (window as any).ethereum
       const provider = new BrowserProvider(eth)
+      const networkError = await getNetworkError(provider)
+      if (networkError) {
+        setError(networkError)
+        return false
+      }
       const balance = await provider.getBalance(address)
       const balanceEth = balance.toString()
+
+      // Fetch USDT Balance
+      let balanceUsdt = '0'
+      try {
+        const { Contract, formatUnits } = await import('ethers')
+        const { MOCK_USDT_ADDRESS, USDT_DECIMALS } = await import('../contracts/contractConfig')
+        const { MockUSDTABI } = await import('../contracts/MockUSDTABI')
+        const usdtContract = new Contract(MOCK_USDT_ADDRESS, MockUSDTABI, provider)
+        const usdtBal = await usdtContract.balanceOf(address)
+        balanceUsdt = formatUnits(usdtBal, USDT_DECIMALS)
+      } catch (usdtError) {
+        console.error('Error fetching USDT balance:', usdtError)
+      }
 
       let assignedRole: UserRole = 'GUEST'
       try {
@@ -28,7 +93,7 @@ export function useMetaMask() {
           .select(`ORGANIZATIONS ( organization_type )`)
           .ilike('wallet_address', address)
           .single()
-        
+
         const orgData = data?.ORGANIZATIONS as any
         assignedRole = (Array.isArray(orgData) ? orgData[0]?.organization_type : orgData?.organization_type) || 'GUEST'
       } catch (dbError) {
@@ -38,6 +103,7 @@ export function useMetaMask() {
       setWallet({
         address,
         balance: (Number(balanceEth) / 1e18).toFixed(4),
+        usdtBalance: parseFloat(balanceUsdt).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         isConnected: true,
         role: assignedRole,
       })
@@ -46,7 +112,7 @@ export function useMetaMask() {
         let defaultPath = '/marketplace'
         if (assignedRole === 'ENTERPRISE') defaultPath = '/seller'
         else if (assignedRole === 'REGULATORY_AGENCY') defaultPath = '/moderator'
-        
+
         // Prevent redirecting if user is currently viewing a detail page on the marketplace
         const isMarketplaceDetail = /^\/marketplace\/[^/]+$/.test(window.location.pathname);
         if (!isMarketplaceDetail && window.location.pathname !== defaultPath) {
@@ -55,11 +121,18 @@ export function useMetaMask() {
       }
 
       return true
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
+      setError(err.message || 'Lỗi lấy thông tin tài khoản')
       return false
     }
-  }, [])
+  }, [getNetworkError])
+
+  const refreshBalance = useCallback(async () => {
+    if (wallet.address && wallet.isConnected) {
+      await loadAccountData(wallet.address, false)
+    }
+  }, [wallet.address, wallet.isConnected, loadAccountData])
 
   // Check if MetaMask is installed
   const isMetaMaskInstalled = useCallback(() => {
@@ -79,8 +152,24 @@ export function useMetaMask() {
       }
 
       const eth = (window as any).ethereum
-      const provider = new BrowserProvider(eth)
-      
+      let provider = new BrowserProvider(eth)
+      let networkError = await getNetworkError(provider)
+
+      if (networkError) {
+        const switched = await switchNetwork()
+        if (!switched) {
+          setError(networkError)
+          return false
+        }
+        // Re-initialize provider after network switch
+        provider = new BrowserProvider(eth)
+        networkError = await getNetworkError(provider)
+        if (networkError) {
+          setError(networkError)
+          return false
+        }
+      }
+
       // Request new account selection every time (won't cache)
       const accounts = await provider.send('eth_requestAccounts', [])
 
@@ -103,13 +192,13 @@ export function useMetaMask() {
       }
       return false
     }
-  }, [isMetaMaskInstalled])
+  }, [getNetworkError, isMetaMaskInstalled, loadAccountData, switchNetwork])
 
   // Disconnect wallet
   const disconnect = useCallback(async () => {
     try {
       const eth = (window as any).ethereum
-      
+
       // Revoke all permissions from MetaMask
       if (eth && eth.request) {
         await eth.request({
@@ -127,6 +216,7 @@ export function useMetaMask() {
     setWallet({
       address: null,
       balance: '0',
+      usdtBalance: '0',
       isConnected: false,
       role: 'GUEST',
     })
@@ -149,7 +239,14 @@ export function useMetaMask() {
       try {
         const accounts = await eth.request({ method: 'eth_accounts' })
         if (accounts && accounts.length > 0) {
-          await loadAccountData(accounts[0], false) // Do NOT redirect on F5
+          const provider = new BrowserProvider(eth)
+          const networkError = await getNetworkError(provider)
+          if (networkError) {
+            setError(networkError)
+          } else {
+            setError('')
+            await loadAccountData(accounts[0], false) // Do NOT redirect on F5
+          }
         }
       } catch (err) {
         console.error('Auto login failed', err)
@@ -176,16 +273,50 @@ export function useMetaMask() {
     eth.on('accountsChanged', handleAccountsChanged)
     eth.on('chainChanged', handleChainChanged)
 
+    // Listen for contract events to refresh balance
+    let usdtContract: any
+    let marketContract: any
+
+    const setupListeners = async () => {
+      try {
+        const { Contract } = await import('ethers')
+        const provider = new BrowserProvider(eth)
+        const { MOCK_USDT_ADDRESS, MARKETPLACE_ADDRESS } = await import('../contracts/contractConfig')
+        const { MockUSDTABI } = await import('../contracts/MockUSDTABI')
+        const { CarbonMarketplaceABI } = await import('../contracts/CarbonMarketplaceABI')
+
+        usdtContract = new Contract(MOCK_USDT_ADDRESS, MockUSDTABI, provider)
+        marketContract = new Contract(MARKETPLACE_ADDRESS, CarbonMarketplaceABI, provider)
+
+        const filterFrom = usdtContract.filters.Transfer(wallet.address)
+        const filterTo = usdtContract.filters.Transfer(null, wallet.address)
+        const filterMarket = marketContract.filters.TokenPurchasedByProject(wallet.address)
+
+        usdtContract.on(filterFrom, refreshBalance)
+        usdtContract.on(filterTo, refreshBalance)
+        marketContract.on(filterMarket, refreshBalance)
+      } catch (err) {
+        console.error('Failed to setup contract listeners:', err)
+      }
+    }
+
+    if (wallet.address && wallet.isConnected) {
+      setupListeners()
+    }
+
     return () => {
       eth.removeListener('accountsChanged', handleAccountsChanged)
       eth.removeListener('chainChanged', handleChainChanged)
+      if (usdtContract) usdtContract.removeAllListeners()
+      if (marketContract) marketContract.removeAllListeners()
     }
-  }, [disconnect, isMetaMaskInstalled, loadAccountData])
+  }, [disconnect, getNetworkError, isMetaMaskInstalled, loadAccountData, wallet.address, wallet.isConnected, refreshBalance])
 
   return {
     wallet,
     connect,
     disconnect,
+    refreshBalance,
     error,
     isMetaMaskInstalled: isMetaMaskInstalled(),
     isInitializing,
