@@ -1,5 +1,6 @@
 import type { Transaction } from '../types'
 import { ExternalLink, Hash, Box, User, ArrowRight, Activity, Zap, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { BLOCK_EXPLORER_URL } from '../contracts/contractConfig'
 
 interface DataTableProps {
   transactions: Transaction[]
@@ -8,6 +9,7 @@ interface DataTableProps {
 export default function DataTable({ transactions }: DataTableProps) {
   const formatCurrency = (value: number) =>
     value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const buildTxUrl = (hash: string) => `${BLOCK_EXPLORER_URL}/tx/${hash}`
 
   if (transactions.length === 0) {
     return (
@@ -20,7 +22,23 @@ export default function DataTable({ transactions }: DataTableProps) {
 
   return (
     <div className="space-y-4">
-      {transactions.map((tx) => (
+      {transactions.map((tx) => {
+        const tokenDelta = Number(tx.amount || 0)
+        const tokenAmount = Math.abs(tokenDelta)
+        const tokenDirection = tokenDelta > 0 ? 1 : tokenDelta < 0 ? -1 : 0
+        const tokenSign = tokenDirection > 0 ? '+' : tokenDirection < 0 ? '-' : ''
+        const tokenColor =
+          tokenDirection > 0 ? 'text-green-600' : tokenDirection < 0 ? 'text-red-600' : 'text-gray-600'
+
+        const hasUsdtAmount = typeof tx.usdtAmount === 'number' && !Number.isNaN(tx.usdtAmount)
+        const usdtRawAmount = hasUsdtAmount ? Number(tx.usdtAmount) : 0
+        const usdtAmount = hasUsdtAmount ? Math.abs(usdtRawAmount) : null
+        const usdtDirection = usdtRawAmount > 0 ? 1 : usdtRawAmount < 0 ? -1 : 0
+        const usdtSign = usdtDirection > 0 ? '+' : usdtDirection < 0 ? '-' : ''
+        const usdtColor =
+          usdtDirection > 0 ? 'text-green-600' : usdtDirection < 0 ? 'text-red-600' : 'text-gray-600'
+
+        return (
         <div 
           key={tx.id} 
           className="group relative overflow-hidden rounded-xl border border-gray-100 bg-white p-5 transition-all duration-300 hover:border-green-200 hover:shadow-xl hover:shadow-green-900/5 hover:-translate-y-1"
@@ -53,14 +71,12 @@ export default function DataTable({ transactions }: DataTableProps) {
                  tx.status === 'Failed' ? <XCircle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
                 {tx.status || 'Success'}
               </div>
-              <div className={`text-sm font-black ${
-                (tx.amount || 0) > 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {(tx.amount || 0) > 0 ? '+' : ''}{(tx.amount || 0).toLocaleString()} TOKEN
+              <div className={`text-sm font-black ${tokenColor}`}>
+                {tokenSign} {tokenAmount.toLocaleString()} TOKEN
               </div>
-              {tx.usdtAmount !== undefined && (tx.amount || 0) > 0 && (
-                <div className="text-sm font-black text-red-600">
-                  -{formatCurrency(tx.usdtAmount)} USDT
+              {hasUsdtAmount && usdtAmount !== null && (
+                <div className={`text-sm font-black ${usdtColor}`}>
+                  {usdtSign} {formatCurrency(usdtAmount)} USDT
                 </div>
               )}
             </div>
@@ -73,12 +89,25 @@ export default function DataTable({ transactions }: DataTableProps) {
               <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-gray-400 uppercase">
                 <Hash className="h-3 w-3" /> Tx Hash
               </div>
-              <div className="flex items-center gap-2 group/hash cursor-pointer">
-                <div className="font-mono text-xs text-gray-600 truncate max-w-[140px] transition-colors group-hover/hash:text-green-600">
-                  {tx.txHash}
+              {tx.txHash?.startsWith('0x') ? (
+                <a
+                  href={buildTxUrl(tx.txHash)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 group/hash cursor-pointer"
+                >
+                  <div className="font-mono text-xs text-gray-600 truncate max-w-[140px] transition-colors group-hover/hash:text-green-600">
+                    {tx.txHash}
+                  </div>
+                  <ExternalLink className="h-3 w-3 text-gray-300 transition-colors group-hover/hash:text-green-400" />
+                </a>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="font-mono text-xs text-gray-400 truncate max-w-[140px]">
+                    {tx.txHash || '---'}
+                  </div>
                 </div>
-                <ExternalLink className="h-3 w-3 text-gray-300 transition-colors group-hover/hash:text-green-400" />
-              </div>
+              )}
             </div>
 
             {/* Block Number */}
@@ -126,7 +155,8 @@ export default function DataTable({ transactions }: DataTableProps) {
             <div className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
           </div>
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

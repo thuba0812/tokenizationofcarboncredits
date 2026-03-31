@@ -43,7 +43,6 @@ Lưu ý:
 
 - `VITE_PINATA_JWT` dùng cho upload IPFS từ frontend.
 - `PRIVATE_KEY` và `SEPOLIA_RPC_URL` dùng cho deploy Hardhat.
-- Không commit `.env`.
 
 ## Cài đặt và chạy local
 
@@ -83,16 +82,7 @@ Scripts này deploy:
 
 và tự cập nhật địa chỉ vào `src/contracts/contractConfig.ts`.
 
-## Cấu trúc thư mục chính
-
-- `src/`: frontend app
-- `contracts/`: solidity contracts
-- `scripts/deploy.cjs`: deploy contracts
-- `scripts/sync/`, `scripts/maintenance/`: script vận hành/sync dữ liệu
-- `scripts/archive/`: script cũ đã lưu trữ
-- `src/database/`: schema SQL và cấu hình Supabase
-
-## Cấu trúc code chi tiết
+## Cấu trúc thư mục
 
 ```text
 tokenizationofcarboncredits/
@@ -123,3 +113,24 @@ tokenizationofcarboncredits/
 ├─ package.json
 └─ .env.example
 ```
+## UI/UX
+
+<div style="display:flex;gap:16px;flex-wrap:wrap"> 
+	<div>
+		<img src="public/Tài sản.png" alt="Tài sản" width="320" />
+		<div style="text-align:center">Giao diện Danh mục tài sản</div>
+	</div>
+	<div>
+		<img src="public/Thị trường.png" alt="Thị trường" width="320" />
+		<div style="text-align:center">Giao diện Tài sản được niêm yết trên thị trường</div>
+	</div>
+	<div>
+		<img src="public/Phát hành token.png" alt="Phát hành token" width="320" />
+		<div style="text-align:center">Giao diện Phát hành token</div>
+	</div>
+	<div>
+		<img src="public/Tiêu huỷ token.png" alt="Tiêu huỷ token" width="320" />
+		<div style="text-align:center">Giao diện Tiêu huỷ token</div>
+	</div>
+</div>
+

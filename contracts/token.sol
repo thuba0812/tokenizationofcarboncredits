@@ -262,18 +262,6 @@ contract CarbonToken is ERC1155, Ownable {
             totalToBurn += amounts[i];
         }
 
-        // Quota check removed per user request:
-        // uint256 quota = enterpriseQuotas[msg.sender];
-        // require(quota > 0, "No quota assigned");
-        // 
-        // // Rule: Total burned <= 10% of Allocated Quota
-        // uint256 maxAllowedBurn = quota / 10; 
-        // 
-        // require(
-        //     totalEnterpriseBurned[msg.sender] + totalToBurn <= maxAllowedBurn,
-        //     "Exceeds 10% enterprise quota rule"
-        // );
-
         _burnBatch(msg.sender, tokenIds, amounts);
         totalEnterpriseBurned[msg.sender] += totalToBurn;
 
@@ -287,7 +275,7 @@ contract CarbonToken is ERC1155, Ownable {
             tokenIds,
             amounts,
             totalToBurn,
-            0 // Quota feature removed
+            0
         );
     }
 

@@ -172,7 +172,7 @@ export class PortfolioRepository extends BaseRepository<any> {
     // 3. Fetch hashes and prices in parallel
     const [listings, purchases, retirements, purchaseItems] = await Promise.all([
       listingIds.length > 0 ? this.client.from('LISTINGS').select('listing_id, listing_tx_hash, project_vintage_id').in('listing_id', listingIds) : Promise.resolve({ data: [] }),
-      purchaseIds.length > 0 ? this.client.from('PURCHASES').select('purchase_id, purchase_tx_hash').in('purchase_id', purchaseIds) : Promise.resolve({ data: [] }),
+      purchaseIds.length > 0 ? this.client.from('PURCHASES').select('purchase_id, purchase_tx_hash, buyer_wallet_id').in('purchase_id', purchaseIds) : Promise.resolve({ data: [] }),
       retirementIds.length > 0 ? this.client.from('RETIREMENTS').select('retirement_id, retirement_tx_hash').in('retirement_id', retirementIds) : Promise.resolve({ data: [] }),
       purchaseIds.length > 0
         ? this.client
@@ -192,6 +192,7 @@ export class PortfolioRepository extends BaseRepository<any> {
 
     const listingMap = new Map(listings.data?.map(l => [l.listing_id, l.listing_tx_hash]))
     const purchaseMap = new Map(purchases.data?.map(p => [p.purchase_id, p.purchase_tx_hash]))
+    const purchaseBuyerMap = new Map(purchases.data?.map(p => [p.purchase_id, Number(p.buyer_wallet_id || 0)]))
     const retirementMap = new Map(retirements.data?.map(r => [r.retirement_id, r.retirement_tx_hash]))
 
     // 4. Map and Enhance with Blockchain data
@@ -201,7 +202,6 @@ export class PortfolioRepository extends BaseRepository<any> {
     for (const row of logs as any[]) {
       let type: 'mint' | 'sell' | 'request' | 'retire' = 'request'
       if (row.activity_type === 'MINT') type = 'mint'
-      else if (row.activity_type === 'PURCHASE') type = 'sell'
       else if (row.activity_type === 'RETIRE' || row.activity_type === 'BURN') type = 'retire'
       else if (row.activity_type === 'LIST' || row.activity_type === 'PURCHASE') type = 'sell'
 
@@ -218,8 +218,10 @@ export class PortfolioRepository extends BaseRepository<any> {
         txHash = retirementMap.get(row.reference_id) || '0x...'
       }
 
-      // Calculate USDT amount matched to the current purchase item/vintage row.
-      let usdtAmount = 0
+      let normalizedTokenDelta = Number(row.delta_amount || 0)
+      let usdtAmount: number | undefined
+
+      // Calculate USDT and normalize sign for purchase rows.
       if (row.activity_type === 'PURCHASE' && row.reference_type === 'PURCHASE') {
         const matchedItems = (purchaseItems.data || []).filter((item: any) => {
           const samePurchase = Number(item.purchase_id) === Number(row.reference_id)
@@ -229,11 +231,22 @@ export class PortfolioRepository extends BaseRepository<any> {
           return samePurchase && sameVintage
         })
 
-        usdtAmount = matchedItems.reduce((sum: number, item: any) => {
+        const matchedTokenAmount = matchedItems.reduce((sum: number, item: any) => {
+          return sum + Number(item.purchased_amount || 0)
+        }, 0)
+
+        const grossUsdtAmount = matchedItems.reduce((sum: number, item: any) => {
           const purchasedAmount = Number(item.purchased_amount || 0)
           const unitPrice = Number(item.unit_price || 0)
           return sum + (purchasedAmount * unitPrice)
         }, 0)
+
+        const buyerWalletId = purchaseBuyerMap.get(Number(row.reference_id)) || 0
+        const isBuyerSide = Number(walletId) === Number(buyerWalletId)
+        const tokenBase = Math.abs(normalizedTokenDelta || matchedTokenAmount)
+
+        normalizedTokenDelta = isBuyerSide ? tokenBase : -tokenBase
+        usdtAmount = grossUsdtAmount > 0 ? (isBuyerSide ? -grossUsdtAmount : grossUsdtAmount) : undefined
       }
 
       const tx: Transaction = {
@@ -242,11 +255,11 @@ export class PortfolioRepository extends BaseRepository<any> {
         txHash: txHash || '0x...',
         activity: `${row.activity_type} (${projectCode})`,
         projectCode,
-        amount: row.delta_amount,
+        amount: normalizedTokenDelta,
         type,
         status: 'Success',
-        usdtAmount: usdtAmount > 0 ? usdtAmount : undefined,
-        value: `${Math.abs(row.delta_amount)} Tokens`
+        usdtAmount,
+        value: `${Math.abs(normalizedTokenDelta)} Tokens`
       }
 
       // Enhance with blockchain details if provider is available
@@ -430,7 +443,7 @@ export class PortfolioRepository extends BaseRepository<any> {
       const creditCode = creditCodeByVintageId.get(vintageId) || `UNKNOWN-${vintageId}`
 
       let nextSeq = nextSequenceByVintage.get(vintageId)
-      if (!nextSeq) {
+      if (nextSeq === undefined) {
         const { data: existingDetails, error: codeFetchError } = await this.client
           .from('RETIREMENT_DETAILS')
           .select('retirement_code')
@@ -452,8 +465,9 @@ export class PortfolioRepository extends BaseRepository<any> {
         nextSeq = maxSeq + 1
       }
 
-      const retirementCode = `RTM-${creditCode}-${String(nextSeq).padStart(4, '0')}`
-      nextSequenceByVintage.set(vintageId, nextSeq + 1)
+      const currentSeq = nextSeq ?? 1
+      const retirementCode = `RTM-${creditCode}-${String(currentSeq).padStart(4, '0')}`
+      nextSequenceByVintage.set(vintageId, currentSeq + 1)
 
       const { error: detailError } = await this.client.from('RETIREMENT_DETAILS').insert({
         retirement_id: retirementId,

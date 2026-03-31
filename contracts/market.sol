@@ -17,7 +17,8 @@ interface ICarbonToken is IERC1155 {
 contract CarbonMarketplace is Ownable, ERC1155Holder, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    uint256 public constant FIXED_FEE_BPS = 1_000; // 10%
+    // Commission disabled: no marketplace fee is charged.
+    uint256 public constant FIXED_FEE_BPS = 0;
     uint256 public constant MAX_PURCHASE_LINES = 20;
 
     uint256 public nextListingId = 1;
@@ -232,7 +233,6 @@ contract CarbonMarketplace is Ownable, ERC1155Holder, ReentrancyGuard {
         }
 
         bytes32 pHash = keccak256(bytes(projectId));
-        uint256 totalFee = 0;
         uint256 totalCost = 0;
 
         uint256[] memory tokenIds = new uint256[](ids.length);
@@ -252,14 +252,12 @@ contract CarbonMarketplace is Ownable, ERC1155Holder, ReentrancyGuard {
             );
 
             uint256 gross = listing.pricePerUnit * amount;
-            uint256 fee = (gross * FIXED_FEE_BPS) / 10_000;
-            uint256 sellerReceive = gross - fee;
+            uint256 sellerReceive = gross;
 
             tokenIds[i] = listing.tokenId;
             sellerReceives[i] = sellerReceive;
 
             totalCost += gross;
-            totalFee += fee;
         }
 
         require(
@@ -283,10 +281,6 @@ contract CarbonMarketplace is Ownable, ERC1155Holder, ReentrancyGuard {
             usdt.safeTransferFrom(msg.sender, listing.seller, sellerReceives[i]);
         }
 
-        if (totalFee > 0) {
-            usdt.safeTransferFrom(msg.sender, feeRecipient, totalFee);
-        }
-
         for (uint256 i = 0; i < ids.length; i++) {
             carbonToken.safeTransferFrom(
                 address(this),
@@ -302,7 +296,7 @@ contract CarbonMarketplace is Ownable, ERC1155Holder, ReentrancyGuard {
             pHash,
             ids.length,
             totalCost,
-            totalFee
+            0
         );
     }
 
