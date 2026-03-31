@@ -115,22 +115,25 @@ tokenizationofcarboncredits/
 ```
 ## UI/UX
 
-<div style="display:flex;gap:16px;flex-wrap:wrap"> 
-	<div>
-		<img src="public/Tài sản.png" alt="Tài sản" width="320" />
-		<div style="text-align:center">Giao diện Danh mục tài sản</div>
-	</div>
-	<div>
-		<img src="public/Thị trường.png" alt="Thị trường" width="320" />
-		<div style="text-align:center">Giao diện Tài sản được niêm yết trên thị trường</div>
-	</div>
-	<div>
-		<img src="public/Phát hành token.png" alt="Phát hành token" width="320" />
-		<div style="text-align:center">Giao diện Phát hành token</div>
-	</div>
-	<div>
-		<img src="public/Tiêu huỷ token.png" alt="Tiêu huỷ token" width="320" />
-		<div style="text-align:center">Giao diện Tiêu huỷ token</div>
-	</div>
+<div style="display:flex;flex-direction:column;gap:24px"> 
+	<figure style="margin:0">
+		<img src="public/Tài sản.png" alt="Tài sản" style="width:100%;height:auto;max-width:100vw;display:block" />
+		<figcaption style="text-align:center">Giao diện Danh mục tài sản</figcaption>
+	</figure>
+
+	<figure style="margin:0">
+		<img src="public/Thị trường.png" alt="Thị trường" style="width:100%;height:auto;max-width:100vw;display:block" />
+		<figcaption style="text-align:center">Giao diện Tài sản được niêm yết trên thị trường</figcaption>
+	</figure>
+
+	<figure style="margin:0">
+		<img src="public/Phát hành token.png" alt="Phát hành token" style="width:100%;height:auto;max-width:100vw;display:block" />
+		<figcaption style="text-align:center">Giao diện Phát hành token</figcaption>
+	</figure>
+
+	<figure style="margin:0">
+		<img src="public/Tiêu huỷ token.png" alt="Tiêu huỷ token" style="width:100%;height:auto;max-width:100vw;display:block" />
+		<figcaption style="text-align:center">Giao diện Tiêu huỷ token</figcaption>
+	</figure>
 </div>
 
